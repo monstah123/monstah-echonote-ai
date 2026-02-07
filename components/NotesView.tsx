@@ -269,11 +269,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }
 
     const text = textToPlay || currentNote?.transcript;
-    if (!text) {
-      showToast("There is no text to listen to.");
+    if (!text || text.trim().length === 0) {
+      showToast("No text to play");
       setIsPlayingAudio(false);
       return;
     }
+
+    // Debug: show what we're sending
+    showToast(`Text: "${text.substring(0, 30)}..." (${text.length} chars)`);
 
     // Reuse existing audio if available and text hasn't changed
     if (audioUrlRef.current && lastPlayedTextRef.current === text && !textToPlay) { // Force new if textToPlay passed (e.g. update)
