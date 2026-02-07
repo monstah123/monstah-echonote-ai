@@ -25,7 +25,7 @@ interface ChatSession {
 }
 
 // Helper function to make OpenAI API requests
-async function openaiRequest(endpoint: string, body: object, isFormData = false): Promise<any> {
+async function openaiRequest(endpoint: string, body: object, isFormData = false, timeoutMs = 30000): Promise<any> {
     const headers: Record<string, string> = {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
     };
@@ -34,18 +34,33 @@ async function openaiRequest(endpoint: string, body: object, isFormData = false)
         headers['Content-Type'] = 'application/json';
     }
 
-    const response = await fetch(`${OPENAI_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers,
-        body: isFormData ? body as FormData : JSON.stringify(body),
-    });
+    // Add timeout with AbortController to prevent hanging on mobile
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `OpenAI API error: ${response.status}`);
+    try {
+        const response = await fetch(`${OPENAI_BASE_URL}${endpoint}`, {
+            method: 'POST',
+            headers,
+            body: isFormData ? body as FormData : JSON.stringify(body),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `OpenAI API error: ${response.status}`);
+        }
+
+        return response;
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out. Check your connection.');
+        }
+        throw error;
     }
-
-    return response;
 }
 
 // Summarize a transcript using GPT-4o-mini
