@@ -342,14 +342,27 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Use MediaRecorder to collect audio for OpenAI Whisper transcription
-      // Try audio/webm;codecs=opus first, fallback to audio/webm
-      let mimeType = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = 'audio/webm';
+      // Robust MIME type selection for Cross-Browser compatibility (Desktop & Mobile)
+      const mimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4', // Safari / iOS often prefers this
+        'audio/mp3',
+        '' // Empty string allows the browser to simply use its default
+      ];
+
+      let selectedMimeType = '';
+      for (const type of mimeTypes) {
+        if (type === '' || MediaRecorder.isTypeSupported(type)) {
+          selectedMimeType = type;
+          break;
+        }
       }
 
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      // Create MediaRecorder with the best supported option
+      const options = selectedMimeType ? { mimeType: selectedMimeType } : undefined;
+      const mediaRecorder = new MediaRecorder(stream, options);
+
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -365,7 +378,13 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       showToast("Recording started. Speak now...");
     } catch (err) {
       console.error("Error starting recording:", err);
-      showToast("Could not access microphone.");
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        showToast("Microphone access denied. Please enable permissions in Settings.");
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+        showToast("No microphone found on this device.");
+      } else {
+        showToast("Could not access microphone: " + (err as Error).message);
+      }
       setIsRecording(false);
     }
   };
