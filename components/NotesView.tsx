@@ -317,6 +317,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     setIsGeneratingSpeech(true);
     showToast("Generating audio...");
 
+    // FAILSAFE: Hard 20s timeout that will ALWAYS stop loading
+    const failsafeTimeout = setTimeout(() => {
+      console.error("FAILSAFE: 20s timeout hit");
+      setIsGeneratingSpeech(false);
+      setIsPlayingAudio(false);
+      showToast("Timeout - please try again");
+    }, 20000);
+
     // MOBILE SAFARI FIX: Initialize and play a silent file IMMEDIATELY to capture user gesture
     const audio = new Audio(SILENT_MP3);
     audio.playbackRate = playbackSpeed;
@@ -386,6 +394,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audio.pause();
       audioElementRef.current = null;
     } finally {
+      clearTimeout(failsafeTimeout);
       setIsGeneratingSpeech(false);
     }
   };
