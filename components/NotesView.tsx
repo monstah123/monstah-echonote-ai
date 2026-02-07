@@ -729,7 +729,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
             className="w-full h-full bg-transparent resize-none focus:outline-none text-base sm:text-lg leading-relaxed text-light-text dark:text-gray-300 placeholder-light-text-secondary dark:placeholder-dark-text-secondary overflow-y-auto p-2"
             aria-label="Note transcript"
           />
-          {isRecording && <span className="absolute top-3 right-3 animate-pulse w-3 h-3 bg-red-500 rounded-full"></span>}
+          {isRecording && <span className="absolute top-3 right-3 animate-pulse w-3 h-3 bg-lime-400 rounded-full shadow-lg shadow-lime-400/50"></span>}
         </div>
       </div>
 
@@ -756,10 +756,10 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
             className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95 z-10 touch-manipulation"
             aria-label={isRecording ? 'Stop recording' : 'Start recording'}
           >
-            <div className={`absolute inset-0 rounded-full border-2 ${isRecording ? 'border-red-500 animate-pulse' : 'border-gray-500 dark:border-white/60'}`}></div>
+            <div className={`absolute inset-0 rounded-full border-2 ${isRecording ? 'border-lime-400 animate-pulse shadow-lg shadow-lime-400/50' : 'border-gray-500 dark:border-white/60'}`}></div>
             <div className="w-[88%] h-[88%] bg-light-card dark:bg-[#1D1E29] rounded-full flex items-center justify-center">
               {isRecording ?
-                <StopCircle size={28} className="text-red-500" /> :
+                <StopCircle size={28} className="text-lime-400" /> :
                 <Mic size={28} className="text-brand-blue" />
               }
             </div>
