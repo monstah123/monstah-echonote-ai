@@ -679,16 +679,19 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={handleChangeSpeed} className="w-12 text-sm font-bold p-2 rounded-lg text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors">
+            <button onClick={handleChangeSpeed} className="w-12 text-sm font-bold p-2 rounded-lg text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors touch-manipulation">
               {playbackSpeed}x
             </button>
-            <button onClick={handleStopAudio} disabled={!audioElementRef.current} className="p-2 rounded-full text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors disabled:opacity-50">
+            <button onClick={handleStopAudio} disabled={!audioElementRef.current} className="p-2 rounded-full text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors disabled:opacity-50 touch-manipulation">
               <StopCircle size={22} />
             </button>
             <button
-              onClick={handlePlayPause}
+              onClick={() => {
+                showToast("Button tapped!");
+                handlePlayPause();
+              }}
               disabled={isGeneratingSpeech}
-              className="w-12 h-12 flex items-center justify-center bg-brand-blue text-white rounded-full transition-transform hover:scale-105 disabled:opacity-50"
+              className="w-12 h-12 flex items-center justify-center bg-brand-blue text-white rounded-full transition-transform hover:scale-105 disabled:opacity-50 touch-manipulation"
             >
               {isGeneratingSpeech
                 ? <Loader size={24} className="animate-spin" />
