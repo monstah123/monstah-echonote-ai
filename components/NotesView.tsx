@@ -317,80 +317,45 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     setIsGeneratingSpeech(true);
     showToast("Generating audio...");
 
-    // FAILSAFE: Hard 20s timeout that will ALWAYS stop loading
+    // FAILSAFE: Hard 20s timeout
     const failsafeTimeout = setTimeout(() => {
-      console.error("FAILSAFE: 20s timeout hit");
       setIsGeneratingSpeech(false);
-      setIsPlayingAudio(false);
       showToast("Timeout - please try again");
     }, 20000);
 
-    // MOBILE SAFARI FIX: Initialize and play a silent file IMMEDIATELY to capture user gesture
-    const audio = new Audio(SILENT_MP3);
-    audio.playbackRate = playbackSpeed;
-    audioElementRef.current = audio;
-
-    // Setup listeners
-    audio.onended = () => setIsPlayingAudio(false);
-    audio.onpause = () => setIsPlayingAudio(false);
-    audio.onplay = () => setIsPlayingAudio(true);
-    audio.onerror = (e) => {
-      console.error("Audio playback error:", e);
-      setIsPlayingAudio(false);
-    };
-
     try {
-      // Play silence to unlock
-      await audio.play();
-    } catch (e) {
-      console.warn("Silent unlock failed (might be auto-play), continuing...", e);
-    }
-
-    try {
-      showToast("Step 1: Starting...");
-
-      const fetchPromise = generateSpeechFromText(text, selectedVoice);
-
-      showToast("Step 2: Calling API...");
-
-      const audioBlob = await fetchPromise;
-
-      showToast("Step 3: Got audio data!");
+      showToast("Calling OpenAI...");
+      const audioBlob = await generateSpeechFromText(text, selectedVoice);
+      showToast("Got audio!");
 
       if (!audioBlob || audioBlob.size === 0) {
-        throw new Error("No audio data received.");
+        throw new Error("Empty audio data");
       }
 
       const url = URL.createObjectURL(audioBlob);
 
-      // Cache the new audio
+      // Cache the audio
       if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
       audioUrlRef.current = url;
       lastPlayedTextRef.current = text;
 
-      // Swap source to real audio
-      audio.src = url;
-      audio.playbackRate = playbackSpeed; // Re-apply speed
+      // Create and play audio element
+      const audio = new Audio(url);
+      audio.playbackRate = playbackSpeed;
+      audioElementRef.current = audio;
 
-      // Play real audio
-      try {
-        await audio.play();
-        setIsPlayingAudio(true);
-      } catch (playError) {
-        console.error("Playback failed (possibly autoplay blocked):", playError);
-        setIsPlayingAudio(false);
-        showToast("Tap Play again to listen.");
-        throw playError; // Propagate error so auto-play effect can handle it
-      }
+      audio.onended = () => setIsPlayingAudio(false);
+      audio.onpause = () => setIsPlayingAudio(false);
+      audio.onplay = () => setIsPlayingAudio(true);
+
+      showToast("Playing...");
+      await audio.play();
+      setIsPlayingAudio(true);
 
     } catch (error: any) {
-      console.error("Error generating/playing speech:", error);
-      const errorMsg = error?.message || "Unknown error";
-      showToast(`Audio error: ${errorMsg.substring(0, 50)}`);
+      console.error("Audio error:", error);
+      showToast(`Error: ${error?.message?.substring(0, 40) || "Unknown"}`);
       setIsPlayingAudio(false);
-      // Clean up if failed
-      audio.pause();
-      audioElementRef.current = null;
     } finally {
       clearTimeout(failsafeTimeout);
       setIsGeneratingSpeech(false);
