@@ -203,22 +203,27 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     setIsGeneratingSpeech(false);
   }, []);
 
-  // Auto-play DISABLED for debugging - manual play button should work
-  // useEffect(() => {
-  //   if (shouldAutoPlay && !hasAutoPlayed && currentNote?.transcript && currentNote.transcript.trim().length > 0 && !currentNote.transcript.startsWith('[')) {
-  //     setHasAutoPlayed(true);
-  //     const timer = setTimeout(async () => {
-  //       console.log("Auto-playing audio after scan...");
-  //       try {
-  //         await handlePlayPause(currentNote.transcript);
-  //       } catch (error) {
-  //         console.log("Auto-play blocked, showing play prompt:", error);
-  //         setShowPlayPrompt(true);
-  //       }
-  //     }, 800);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [shouldAutoPlay, hasAutoPlayed, currentNote?.transcript]);
+  // Auto-play after scanning - with fallback for mobile
+  useEffect(() => {
+    if (shouldAutoPlay && !hasAutoPlayed && currentNote?.transcript &&
+      currentNote.transcript.trim().length > 0 &&
+      !currentNote.transcript.startsWith('[')) {
+
+      setHasAutoPlayed(true); // Mark as attempted immediately
+
+      const timer = setTimeout(async () => {
+        console.log("Attempting auto-play after scan...");
+        try {
+          await handlePlayPause(currentNote.transcript);
+        } catch (error) {
+          console.log("Auto-play blocked on mobile, showing play prompt");
+          setShowPlayPrompt(true);
+        }
+      }, 1000); // Give UI time to settle
+
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoPlay, hasAutoPlayed, currentNote?.transcript]);
 
   useEffect(() => {
     if (note) {
@@ -277,8 +282,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       return;
     }
 
-    // Debug: show what we're sending
-    showToast(`Text: "${text.substring(0, 30)}..." (${text.length} chars)`);
+
 
     // Reuse existing audio if available and text hasn't changed
     if (audioUrlRef.current && lastPlayedTextRef.current === text && !textToPlay) { // Force new if textToPlay passed (e.g. update)
@@ -329,9 +333,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }, 20000);
 
     try {
-      showToast("Calling OpenAI...");
       const audioBlob = await generateSpeechFromText(text, selectedVoice);
-      showToast("Got audio!");
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error("Empty audio data");
@@ -353,7 +355,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audio.onpause = () => setIsPlayingAudio(false);
       audio.onplay = () => setIsPlayingAudio(true);
 
-      showToast("Playing...");
+
       await audio.play();
       setIsPlayingAudio(true);
 
@@ -686,10 +688,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
               <StopCircle size={22} />
             </button>
             <button
-              onClick={() => {
-                showToast("Button tapped!");
-                handlePlayPause();
-              }}
+              onClick={() => handlePlayPause()}
               disabled={isGeneratingSpeech}
               className="w-12 h-12 flex items-center justify-center bg-brand-blue text-white rounded-full transition-transform hover:scale-105 disabled:opacity-50 touch-manipulation"
             >
