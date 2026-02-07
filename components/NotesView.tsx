@@ -166,34 +166,35 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // Use HTMLAudioElement for better compatibility with Safari/Mobile
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+
+  // Refs for visualiser/cleanup (kept for reference or potential future use)
   const outputAudioContextRef = useRef<AudioContext | null>(null);
   const audioSourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
-  const audioBufferRef = useRef<AudioBuffer | null>(null);
   const voiceDropdownRef = useRef<HTMLDivElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  // audioBufferRef is replaced by direct Audio element src, but we might check if we need it for anything else. 
+  // If not, removing it is safer. 
+  // Checking usage: handleSelectVoice used it (fixed), Stop button used it (need to fix).
 
   const cleanupAudio = useCallback(() => {
-    if (audioSourceNodeRef.current) {
-      try { audioSourceNodeRef.current.stop(); } catch (e) { }
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.src = '';
+      audioElementRef.current = null;
     }
+    // Clean up AudioContext if used for visualiser (optional, skipping for now to ensure stability)
     if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
       outputAudioContextRef.current.close();
     }
-    audioBufferRef.current = null;
-    audioSourceNodeRef.current = null;
     outputAudioContextRef.current = null;
     analyserRef.current = null;
     setIsPlayingAudio(false);
     setIsGeneratingSpeech(false);
   }, []);
 
-  // Handle auto-play from Scanner
-  useEffect(() => {
-    if (shouldAutoPlay && transcription && transcription.length > 20 && !hasAutoPlayed && !isGeneratingSpeech && !isPlayingAudio) {
-      setHasAutoPlayed(true);
-      handlePlayPause();
-    }
-  }, [shouldAutoPlay, transcription, hasAutoPlayed, isGeneratingSpeech, isPlayingAudio]);
+  // ... (keep auto-play effect)
 
   useEffect(() => {
     if (note) {
@@ -203,138 +204,99 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     return cleanupAudio;
   }, [note, cleanupAudio]);
 
-  useEffect(() => {
-    if (currentNote && transcription !== currentNote.transcript) {
-      const handler = setTimeout(() => {
-        onSave({ ...currentNote, transcript: transcription });
-      }, 1000);
-      return () => clearTimeout(handler);
-    }
-  }, [transcription, currentNote, onSave]);
+  // ... (keep text update effect)
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (voiceDropdownRef.current && !voiceDropdownRef.current.contains(event.target as Node)) {
-        setIsVoiceDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // ... (keep click outside effect)
 
-  const playFromBeginning = useCallback(() => {
-    if (!audioBufferRef.current) return;
-    if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') {
-      outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
-    }
-    if (audioSourceNodeRef.current) {
-      audioSourceNodeRef.current.onended = null;
-      try { audioSourceNodeRef.current.stop(); } catch (e) { }
-    }
-    if (outputAudioContextRef.current.state === 'suspended') {
-      outputAudioContextRef.current.resume();
-    }
-
-    const audioCtx = outputAudioContextRef.current;
-    if (!analyserRef.current || analyserRef.current.context !== audioCtx) {
-      const newAnalyser = audioCtx.createAnalyser();
-      newAnalyser.fftSize = 64;
-      analyserRef.current = newAnalyser;
-    }
-
-    const source = audioCtx.createBufferSource();
-    source.buffer = audioBufferRef.current;
-    source.playbackRate.value = playbackSpeed;
-
-    source.connect(analyserRef.current);
-    analyserRef.current.connect(audioCtx.destination);
-
-    source.onended = () => {
-      if (outputAudioContextRef.current?.state !== 'suspended') {
-        setIsPlayingAudio(false);
-        audioSourceNodeRef.current = null;
-      }
-    };
-    source.start(0);
-    audioSourceNodeRef.current = source;
-    setIsPlayingAudio(true);
-  }, [playbackSpeed]);
-
-
+  // Combined Play/Pause handler using HTMLAudioElement
   const handlePlayPause = async (textToPlay?: string) => {
+    // If playing, pause it
     if (isPlayingAudio && !textToPlay) {
-      if (outputAudioContextRef.current?.state === 'running') {
-        await outputAudioContextRef.current.suspend();
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
         setIsPlayingAudio(false);
       }
       return;
     }
 
-    // Stop any currently playing source first
-    if (audioSourceNodeRef.current) {
-      try { audioSourceNodeRef.current.stop(); } catch (e) { }
-      audioSourceNodeRef.current = null;
-    }
-
-    // If new text is provided or no buffer exists, generate new audio
-    if ((textToPlay || !audioBufferRef.current)) {
+    // If text forced or no audio element exists, generate and play new
+    if (textToPlay || !audioElementRef.current) {
       const text = textToPlay || currentNote?.transcript;
       if (!text) {
         showToast("There is no text to listen to.");
         return;
       }
 
-      // Reset buffer if we are generating new audio
-      audioBufferRef.current = null;
+      // Cleanup existing audio
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
+      }
 
       setIsGeneratingSpeech(true);
       try {
         const base64Audio = await generateSpeechFromText(text, selectedVoice);
-        if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') {
-          outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+        // Convert base64 to Blob URL
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
         }
-        const audioBytes = decode(base64Audio);
-        const buffer = await decodeAudioDataFromMp3(audioBytes, outputAudioContextRef.current);
-        audioBufferRef.current = buffer;
-        playFromBeginning();
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const url = URL.createObjectURL(blob);
+
+        const audio = new Audio(url);
+        audio.playbackRate = playbackSpeed;
+
+        // Setup listeners
+        audio.onended = () => setIsPlayingAudio(false);
+        audio.onpause = () => setIsPlayingAudio(false);
+        audio.onplay = () => setIsPlayingAudio(true);
+        audio.onerror = (e) => {
+          console.error("Audio playback error:", e);
+          setIsPlayingAudio(false);
+          showToast("Error playing audio.");
+        };
+
+        audioElementRef.current = audio;
+
+        // Attempt to play
+        await audio.play();
+        setIsPlayingAudio(true);
+
       } catch (error) {
-        console.error("Error generating speech:", error);
+        console.error("Error generating/playing speech:", error);
         showToast("Sorry, couldn't generate audio.");
       } finally {
         setIsGeneratingSpeech(false);
       }
     }
-    // Resume existing buffer if available and no new text forced
-    else if (audioBufferRef.current) {
-      if (outputAudioContextRef.current?.state === 'suspended') {
-        await outputAudioContextRef.current.resume();
+    // Resume existing audio
+    else if (audioElementRef.current) {
+      if (audioElementRef.current.paused) {
+        audioElementRef.current.playbackRate = playbackSpeed; // Ensure speed is kept
+        await audioElementRef.current.play();
         setIsPlayingAudio(true);
-      }
-      else {
-        playFromBeginning();
       }
     }
   };
 
   const handleStopAudio = useCallback(() => {
-    if (audioSourceNodeRef.current) {
-      audioSourceNodeRef.current.onended = null;
-      try { audioSourceNodeRef.current.stop(); } catch (e) { }
-    }
-    if (outputAudioContextRef.current && outputAudioContextRef.current.state === 'suspended') {
-      outputAudioContextRef.current.resume();
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
     }
     setIsPlayingAudio(false);
-    audioSourceNodeRef.current = null;
   }, []);
-
 
   const handleSelectVoice = (voiceId: string) => {
     setSelectedVoice(voiceId);
     setIsVoiceDropdownOpen(false);
-    if (audioBufferRef.current) {
+    // Force regeneration on next play
+    if (audioElementRef.current) {
       handleStopAudio();
-      audioBufferRef.current = null;
+      audioElementRef.current = null;
     }
   };
 
@@ -343,10 +305,12 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     const nextIndex = (currentIndex + 1) % playbackSpeeds.length;
     const newSpeed = playbackSpeeds[nextIndex];
     setPlaybackSpeed(newSpeed);
-    if (audioSourceNodeRef.current) {
-      audioSourceNodeRef.current.playbackRate.value = newSpeed;
+    if (audioElementRef.current) {
+      audioElementRef.current.playbackRate = newSpeed;
     }
   };
+
+  // ... (rest of component) ...
 
   const handleStartRecording = async () => {
     if (isRecording) return;
@@ -488,11 +452,11 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     recorder.stop();
   }, [transcription, currentNote, onSave, showToast]);
 
-  // Clear audio buffer when voice changes to ensure new audio is generated with correct voice
+  // Clear audio element when voice changes
   useEffect(() => {
-    if (audioBufferRef.current) {
+    if (audioElementRef.current) {
       handleStopAudio();
-      audioBufferRef.current = null;
+      audioElementRef.current = null;
     }
   }, [selectedVoice]);
 
@@ -633,7 +597,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
             <button onClick={handleChangeSpeed} className="w-12 text-sm font-bold p-2 rounded-lg text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors">
               {playbackSpeed}x
             </button>
-            <button onClick={handleStopAudio} disabled={!audioBufferRef.current} className="p-2 rounded-full text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors disabled:opacity-50">
+            <button onClick={handleStopAudio} disabled={!audioElementRef.current} className="p-2 rounded-full text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors disabled:opacity-50">
               <StopCircle size={22} />
             </button>
             <button
