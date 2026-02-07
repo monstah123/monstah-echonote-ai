@@ -220,12 +220,16 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }
 
     // If text forced or no audio element exists, generate and play new
-    if (textToPlay || !audioElementRef.current) {
+    if (textToPlay || !audioElementRef.current || !audioElementRef.current.src) {
       const text = textToPlay || currentNote?.transcript;
       if (!text) {
         showToast("There is no text to listen to.");
+        setIsPlayingAudio(false);
         return;
       }
+
+      console.log("Attempting to play text:", textToPlay || currentNote?.transcript);
+      console.log("Generating audio for text length:", text.length);
 
       // Cleanup existing audio
       if (audioElementRef.current) {
@@ -234,8 +238,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       }
 
       setIsGeneratingSpeech(true);
+      showToast("Generating audio..."); // Feedback to user
+
       try {
         const base64Audio = await generateSpeechFromText(text, selectedVoice);
+
+        if (!base64Audio) {
+          throw new Error("No audio data received.");
+        }
 
         // Convert base64 to Blob URL
         const binaryString = atob(base64Audio);
@@ -262,22 +272,35 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         audioElementRef.current = audio;
 
         // Attempt to play
-        await audio.play();
-        setIsPlayingAudio(true);
+        try {
+          await audio.play();
+          setIsPlayingAudio(true);
+        } catch (playError) {
+          console.error("Playback failed (possibly autoplay blocked):", playError);
+          setIsPlayingAudio(false);
+          showToast("Tap Play again to listen.");
+        }
 
       } catch (error) {
         console.error("Error generating/playing speech:", error);
         showToast("Sorry, couldn't generate audio.");
+        setIsPlayingAudio(false);
       } finally {
         setIsGeneratingSpeech(false);
       }
     }
     // Resume existing audio
     else if (audioElementRef.current) {
-      if (audioElementRef.current.paused) {
-        audioElementRef.current.playbackRate = playbackSpeed; // Ensure speed is kept
-        await audioElementRef.current.play();
-        setIsPlayingAudio(true);
+      try {
+        if (audioElementRef.current.paused) {
+          audioElementRef.current.playbackRate = playbackSpeed; // Ensure speed is kept
+          await audioElementRef.current.play();
+          setIsPlayingAudio(true);
+        }
+      } catch (e) {
+        console.error("Resume failed:", e);
+        showToast("Playback error. Tap again.");
+        setIsPlayingAudio(false);
       }
     }
   };
