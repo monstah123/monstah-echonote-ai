@@ -130,10 +130,11 @@ export const generateSpeechFromText = async (text: string, voice: string): Promi
     try {
         // Helper to fetch audio for a single chunk
         const fetchAudioChunk = async (chunk: string): Promise<Uint8Array> => {
+            console.log(`Fetching audio chunk of length ${chunk.length}`);
             const response = await openaiRequest('/audio/speech', {
                 model: 'tts-1',
                 input: chunk,
-                voice: voice || 'nova',
+                voice: voice || 'alloy',
                 response_format: 'mp3',
             });
             const arrayBuffer = await response.arrayBuffer();
@@ -142,31 +143,42 @@ export const generateSpeechFromText = async (text: string, voice: string): Promi
 
         let audioParts: Uint8Array[] = [];
 
-        if (text.length <= MAX_CHARS) {
-            audioParts.push(await fetchAudioChunk(text));
-        } else {
-            // Split text into safe chunks
-            const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
-            let currentChunk = '';
+        // Robust text splitting logic to avoid regex performance issues on mobile
+        let remainingText = text;
+        const chunks: string[] = [];
 
-            for (const sentence of sentences) {
-                if ((currentChunk + sentence).length < MAX_CHARS) {
-                    currentChunk += sentence;
-                } else {
-                    if (currentChunk) audioParts.push(await fetchAudioChunk(currentChunk));
-                    currentChunk = sentence;
-
-                    // Handle edge case: very long sentence > MAX_CHARS
-                    if (currentChunk.length >= MAX_CHARS) {
-                        const subChunks = currentChunk.match(new RegExp(`.{1,${MAX_CHARS}}`, 'g')) || [currentChunk];
-                        for (let i = 0; i < subChunks.length - 1; i++) {
-                            audioParts.push(await fetchAudioChunk(subChunks[i]));
-                        }
-                        currentChunk = subChunks[subChunks.length - 1];
-                    }
-                }
+        while (remainingText.length > 0) {
+            if (remainingText.length <= MAX_CHARS) {
+                chunks.push(remainingText);
+                break;
             }
-            if (currentChunk) audioParts.push(await fetchAudioChunk(currentChunk));
+
+            // Find optimal split point (period, then other punctuation, then space)
+            let splitIndex = remainingText.lastIndexOf('. ', MAX_CHARS);
+            if (splitIndex === -1) splitIndex = remainingText.lastIndexOf('? ', MAX_CHARS);
+            if (splitIndex === -1) splitIndex = remainingText.lastIndexOf('! ', MAX_CHARS);
+            if (splitIndex === -1) splitIndex = remainingText.lastIndexOf('\n', MAX_CHARS); // Split on newlines
+            if (splitIndex === -1) splitIndex = remainingText.lastIndexOf(', ', MAX_CHARS);
+            if (splitIndex === -1) splitIndex = remainingText.lastIndexOf(' ', MAX_CHARS);
+
+            if (splitIndex === -1 || splitIndex < MAX_CHARS * 0.1) {
+                // No good split point found, or it's too early. Hard chop.
+                splitIndex = MAX_CHARS;
+            } else {
+                splitIndex += 1; // Include the separator character
+            }
+
+            chunks.push(remainingText.substring(0, splitIndex));
+            remainingText = remainingText.substring(splitIndex).trim();
+        }
+
+        console.log(`Split text into ${chunks.length} chunks for processing.`);
+
+        // Process chunks sequentially
+        for (const chunk of chunks) {
+            if (chunk.trim().length > 0) {
+                audioParts.push(await fetchAudioChunk(chunk));
+            }
         }
 
         // Concatenate all audio parts
@@ -191,7 +203,7 @@ export const generateSpeechFromText = async (text: string, voice: string): Promi
         return btoa(binary);
 
     } catch (error) {
-        console.error("Error generating speech:", error);
+        console.error("Error generating speech from chunks:", error);
         throw error;
     }
 };
