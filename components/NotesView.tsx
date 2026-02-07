@@ -261,8 +261,8 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   }, [playbackSpeed]);
 
 
-  const handlePlayPause = async () => {
-    if (isPlayingAudio) {
+  const handlePlayPause = async (textToPlay?: string) => {
+    if (isPlayingAudio && !textToPlay) {
       if (outputAudioContextRef.current?.state === 'running') {
         await outputAudioContextRef.current.suspend();
         setIsPlayingAudio(false);
@@ -276,23 +276,20 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audioSourceNodeRef.current = null;
     }
 
-    if (audioBufferRef.current) {
-      if (outputAudioContextRef.current?.state === 'suspended') {
-        await outputAudioContextRef.current.resume();
-        setIsPlayingAudio(true);
-      }
-      else {
-        playFromBeginning();
-      }
-    }
-    else {
-      if (!currentNote?.transcript) {
+    // If new text is provided or no buffer exists, generate new audio
+    if ((textToPlay || !audioBufferRef.current)) {
+      const text = textToPlay || currentNote?.transcript;
+      if (!text) {
         showToast("There is no text to listen to.");
         return;
       }
+
+      // Reset buffer if we are generating new audio
+      audioBufferRef.current = null;
+
       setIsGeneratingSpeech(true);
       try {
-        const base64Audio = await generateSpeechFromText(currentNote.transcript, selectedVoice);
+        const base64Audio = await generateSpeechFromText(text, selectedVoice);
         if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') {
           outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
         }
@@ -305,6 +302,16 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         showToast("Sorry, couldn't generate audio.");
       } finally {
         setIsGeneratingSpeech(false);
+      }
+    }
+    // Resume existing buffer if available and no new text forced
+    else if (audioBufferRef.current) {
+      if (outputAudioContextRef.current?.state === 'suspended') {
+        await outputAudioContextRef.current.resume();
+        setIsPlayingAudio(true);
+      }
+      else {
+        playFromBeginning();
       }
     }
   };
@@ -455,7 +462,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
             // Auto-play the audio after transcription if requested
             // We need to wait a tiny bit for state to settle or just call it
             setTimeout(() => {
-              handlePlayPause();
+              handlePlayPause(updatedTranscript);
             }, 500);
           }
         } catch (error) {
