@@ -154,6 +154,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
   const [showPlayPrompt, setShowPlayPrompt] = useState(false);
+  const [progress, setProgress] = useState(0); // For text highlighting
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -286,9 +287,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         audioElementRef.current = audio;
 
         // Re-bind listeners
-        audio.onended = () => setIsPlayingAudio(false);
+        audio.onended = () => { setIsPlayingAudio(false); setProgress(0); };
         audio.onpause = () => setIsPlayingAudio(false);
         audio.onplay = () => setIsPlayingAudio(true);
+        audio.ontimeupdate = () => {
+          if (audio.duration && !isNaN(audio.duration)) {
+            setProgress(audio.currentTime / audio.duration);
+          }
+        };
         audio.onerror = (e) => {
           console.error("Audio playback error:", e);
           setIsPlayingAudio(false);
@@ -347,10 +353,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audio.playbackRate = playbackSpeed;
       audioElementRef.current = audio;
 
-      audio.onended = () => setIsPlayingAudio(false);
+      audio.onended = () => { setIsPlayingAudio(false); setProgress(0); };
       audio.onpause = () => setIsPlayingAudio(false);
       audio.onplay = () => setIsPlayingAudio(true);
-
+      audio.ontimeupdate = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          setProgress(audio.currentTime / audio.duration);
+        }
+      };
 
       await audio.play();
       setIsPlayingAudio(true);
@@ -714,14 +724,43 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       {/* Scrollable Transcript Area */}
       <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
         <div className="relative h-full">
-          <textarea
-            value={transcription}
-            onChange={(e) => setTranscription(e.target.value)}
-            readOnly={isRecording}
-            placeholder="Start speaking to begin your note..."
-            className="w-full h-full bg-transparent resize-none focus:outline-none text-base sm:text-lg leading-relaxed text-light-text dark:text-gray-300 placeholder-light-text-secondary dark:placeholder-dark-text-secondary overflow-y-auto p-2"
-            aria-label="Note transcript"
-          />
+          {isPlayingAudio ? (
+            <div className="w-full h-full bg-transparent overflow-y-auto p-2 text-base sm:text-lg leading-relaxed whitespace-pre-wrap font-medium">
+              {(() => {
+                let charCount = 0;
+                const totalLength = transcription.length;
+                const currentLimit = (totalLength * progress) + 15;
+
+                return transcription.split(/(\s+)/).map((part, i) => {
+                  const start = charCount;
+                  charCount += part.length;
+                  const end = charCount;
+
+                  // Default unread style (dimmed)
+                  let className = "text-gray-400 dark:text-gray-600 transition-colors duration-300";
+
+                  if (end <= currentLimit) {
+                    // Read text (high contrast)
+                    className = "text-light-text dark:text-white transition-colors duration-300";
+                  } else if (start < currentLimit && end > currentLimit) {
+                    // Current word (Pop!)
+                    className = "text-brand-blue font-extrabold inline-block transition-all duration-75 scale-105 shadow-brand-blue/20";
+                  }
+
+                  return <span key={i} className={className}>{part}</span>;
+                });
+              })()}
+            </div>
+          ) : (
+            <textarea
+              value={transcription}
+              onChange={(e) => setTranscription(e.target.value)}
+              readOnly={isRecording}
+              placeholder="Start speaking to begin your note..."
+              className="w-full h-full bg-transparent resize-none focus:outline-none text-base sm:text-lg leading-relaxed text-light-text dark:text-gray-300 placeholder-light-text-secondary dark:placeholder-dark-text-secondary overflow-y-auto p-2"
+              aria-label="Note transcript"
+            />
+          )}
           {isRecording && <span className="absolute top-3 right-3 animate-pulse w-3 h-3 bg-lime-400 rounded-full shadow-lg shadow-lime-400/50"></span>}
         </div>
       </div>
