@@ -361,7 +361,12 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
     } catch (error: any) {
       console.error("Audio error:", error);
-      showToast(`Error: ${error?.message?.substring(0, 40) || "Unknown"}`);
+      // If autoplay blocked, show friendly message
+      if (error?.name === 'NotAllowedError' || error?.message?.includes('user gesture')) {
+        showToast("Tap Play to listen 🎧");
+      } else {
+        showToast(`Error: ${error?.message?.substring(0, 30) || "Try again"}`);
+      }
       setIsPlayingAudio(false);
     } finally {
       clearTimeout(failsafeTimeout);
