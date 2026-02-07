@@ -208,6 +208,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
   // ... (keep click outside effect)
 
+  // Silent MP3 to unlock mobile audio
+  const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA";
+
   // Combined Play/Pause handler using HTMLAudioElement
   const handlePlayPause = async (textToPlay?: string) => {
     // If playing, pause it
@@ -238,7 +241,29 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       }
 
       setIsGeneratingSpeech(true);
-      showToast("Generating audio..."); // Feedback to user
+      showToast("Generating audio...");
+
+      // MOBILE SAFARI FIX: Initialize and play a silent file IMMEDIATELY to capture user gesture
+      const audio = new Audio(SILENT_MP3);
+      audio.playbackRate = playbackSpeed;
+      audioElementRef.current = audio;
+
+      // Setup listeners
+      audio.onended = () => setIsPlayingAudio(false);
+      audio.onpause = () => setIsPlayingAudio(false);
+      audio.onplay = () => setIsPlayingAudio(true);
+      audio.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        setIsPlayingAudio(false);
+        // Only show toast if it's a real error, not just the switch
+      };
+
+      try {
+        // Play silence to unlock
+        await audio.play();
+      } catch (e) {
+        console.warn("Silent unlock failed (might be auto-play), continuing...", e);
+      }
 
       try {
         const base64Audio = await generateSpeechFromText(text, selectedVoice);
@@ -256,22 +281,11 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         const blob = new Blob([bytes], { type: 'audio/mp3' });
         const url = URL.createObjectURL(blob);
 
-        const audio = new Audio(url);
-        audio.playbackRate = playbackSpeed;
+        // Swap source to real audio
+        audio.src = url;
+        audio.playbackRate = playbackSpeed; // Re-apply speed
 
-        // Setup listeners
-        audio.onended = () => setIsPlayingAudio(false);
-        audio.onpause = () => setIsPlayingAudio(false);
-        audio.onplay = () => setIsPlayingAudio(true);
-        audio.onerror = (e) => {
-          console.error("Audio playback error:", e);
-          setIsPlayingAudio(false);
-          showToast("Error playing audio.");
-        };
-
-        audioElementRef.current = audio;
-
-        // Attempt to play
+        // Play real audio
         try {
           await audio.play();
           setIsPlayingAudio(true);
@@ -285,6 +299,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         console.error("Error generating/playing speech:", error);
         showToast("Sorry, couldn't generate audio.");
         setIsPlayingAudio(false);
+        // Clean up if failed
+        audio.pause();
+        audioElementRef.current = null;
       } finally {
         setIsGeneratingSpeech(false);
       }
