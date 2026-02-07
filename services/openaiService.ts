@@ -121,26 +121,75 @@ export const sendMessageToChat = async (chat: ChatSession, message: string): Pro
 };
 
 // Generate speech from text using OpenAI TTS
+// Handles long text by splitting into chunks (OpenAI limit is 4096 chars)
 export const generateSpeechFromText = async (text: string, voice: string): Promise<string> => {
     if (!text) return '';
+
+    const MAX_CHARS = 4000; // Safe margin below 4096
+
     try {
-        const response = await openaiRequest('/audio/speech', {
-            model: 'tts-1',
-            input: text,
-            voice: voice || 'nova',
-            response_format: 'mp3',
-        });
+        // Helper to fetch audio for a single chunk
+        const fetchAudioChunk = async (chunk: string): Promise<Uint8Array> => {
+            const response = await openaiRequest('/audio/speech', {
+                model: 'tts-1',
+                input: chunk,
+                voice: voice || 'nova',
+                response_format: 'mp3',
+            });
+            const arrayBuffer = await response.arrayBuffer();
+            return new Uint8Array(arrayBuffer);
+        };
 
-        // Convert the response to base64
-        const arrayBuffer = await response.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-            binary += String.fromCharCode(bytes[i]);
+        let audioParts: Uint8Array[] = [];
+
+        if (text.length <= MAX_CHARS) {
+            audioParts.push(await fetchAudioChunk(text));
+        } else {
+            // Split text into safe chunks
+            const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+            let currentChunk = '';
+
+            for (const sentence of sentences) {
+                if ((currentChunk + sentence).length < MAX_CHARS) {
+                    currentChunk += sentence;
+                } else {
+                    if (currentChunk) audioParts.push(await fetchAudioChunk(currentChunk));
+                    currentChunk = sentence;
+
+                    // Handle edge case: very long sentence > MAX_CHARS
+                    if (currentChunk.length >= MAX_CHARS) {
+                        const subChunks = currentChunk.match(new RegExp(`.{1,${MAX_CHARS}}`, 'g')) || [currentChunk];
+                        for (let i = 0; i < subChunks.length - 1; i++) {
+                            audioParts.push(await fetchAudioChunk(subChunks[i]));
+                        }
+                        currentChunk = subChunks[subChunks.length - 1];
+                    }
+                }
+            }
+            if (currentChunk) audioParts.push(await fetchAudioChunk(currentChunk));
         }
-        const base64Audio = btoa(binary);
 
-        return base64Audio;
+        // Concatenate all audio parts
+        const totalLength = audioParts.reduce((acc, part) => acc + part.length, 0);
+        const combinedBytes = new Uint8Array(totalLength);
+
+        let offset = 0;
+        for (const part of audioParts) {
+            combinedBytes.set(part, offset);
+            offset += part.length;
+        }
+
+        // Convert combined binary to base64
+        let binary = '';
+        // Use a chunked approach to avoid call stack size exceeded for large files
+        const CHUNK_SIZE = 8192;
+        for (let i = 0; i < combinedBytes.length; i += CHUNK_SIZE) {
+            const chunk = combinedBytes.subarray(i, i + CHUNK_SIZE);
+            binary += String.fromCharCode.apply(null, Array.from(chunk));
+        }
+
+        return btoa(binary);
+
     } catch (error) {
         console.error("Error generating speech:", error);
         throw error;
