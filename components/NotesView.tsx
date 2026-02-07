@@ -156,7 +156,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const [driveSaveState, setDriveSaveState] = useState<'idle' | 'saving' | 'success'>('idle');
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState('nova');
+  const [selectedVoice, setSelectedVoice] = useState('alloy');
   const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
@@ -378,8 +378,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         }
       };
 
-      // Use timeslice of 1000ms to get data periodically
-      mediaRecorder.start(1000);
+      // Start recording without timeslice to get a single large blob at the end
+      // This is often more reliable on mobile Safari than chunking every second
+      mediaRecorder.start();
       setIsRecording(true);
       showToast("Recording started. Speak now...");
     } catch (err) {
