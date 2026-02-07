@@ -346,6 +346,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audioUrlRef.current = url;
       lastPlayedTextRef.current = text;
 
+      // Play chime to indicate audio is ready
+      playNotificationSound();
+
       // Create and play audio element
       const audio = new Audio(url);
       audio.playbackRate = playbackSpeed;
@@ -385,11 +388,18 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const handleSelectVoice = (voiceId: string) => {
     setSelectedVoice(voiceId);
     setIsVoiceDropdownOpen(false);
-    // Force regeneration on next play
+    showToast(`Voice: ${voiceId}`);
+
+    // Force regeneration on next play by clearing cache
     if (audioElementRef.current) {
       handleStopAudio();
       audioElementRef.current = null;
     }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    lastPlayedTextRef.current = null;
   };
 
   const handleChangeSpeed = () => {
