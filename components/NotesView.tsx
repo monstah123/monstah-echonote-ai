@@ -266,20 +266,13 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       }
 
       try {
-        const base64Audio = await generateSpeechFromText(text, selectedVoice);
+        const audioBlob = await generateSpeechFromText(text, selectedVoice);
 
-        if (!base64Audio) {
+        if (!audioBlob || audioBlob.size === 0) {
           throw new Error("No audio data received.");
         }
 
-        // Convert base64 to Blob URL
-        const binaryString = atob(base64Audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'audio/mp3' });
-        const url = URL.createObjectURL(blob);
+        const url = URL.createObjectURL(audioBlob);
 
         // Swap source to real audio
         audio.src = url;

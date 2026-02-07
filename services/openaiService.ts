@@ -122,8 +122,8 @@ export const sendMessageToChat = async (chat: ChatSession, message: string): Pro
 
 // Generate speech from text using OpenAI TTS
 // Handles long text by splitting into chunks (OpenAI limit is 4096 chars)
-export const generateSpeechFromText = async (text: string, voice: string): Promise<string> => {
-    if (!text) return '';
+export const generateSpeechFromText = async (text: string, voice: string): Promise<Blob> => {
+    if (!text) return new Blob([], { type: 'audio/mp3' });
 
     const MAX_CHARS = 4000; // Safe margin below 4096
 
@@ -191,16 +191,8 @@ export const generateSpeechFromText = async (text: string, voice: string): Promi
             offset += part.length;
         }
 
-        // Convert combined binary to base64
-        let binary = '';
-        // Use a chunked approach to avoid call stack size exceeded for large files
-        const CHUNK_SIZE = 8192;
-        for (let i = 0; i < combinedBytes.length; i += CHUNK_SIZE) {
-            const chunk = combinedBytes.subarray(i, i + CHUNK_SIZE);
-            binary += String.fromCharCode.apply(null, Array.from(chunk));
-        }
-
-        return btoa(binary);
+        // Return Blob directly to avoid expensive base64 conversion on mobile
+        return new Blob([combinedBytes], { type: 'audio/mp3' });
 
     } catch (error) {
         console.error("Error generating speech from chunks:", error);
