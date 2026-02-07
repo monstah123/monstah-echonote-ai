@@ -205,17 +205,18 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
   // Auto-play effect - triggers when shouldAutoPlay is true (e.g., after scanning)
   useEffect(() => {
-    if (shouldAutoPlay && !hasAutoPlayed && currentNote?.transcript && currentNote.transcript.trim().length > 0) {
+    if (shouldAutoPlay && !hasAutoPlayed && currentNote?.transcript && currentNote.transcript.trim().length > 0 && !currentNote.transcript.startsWith('[')) {
+      // Mark as played immediately to prevent retries
+      setHasAutoPlayed(true);
+
       // Small delay to ensure UI has settled
       const timer = setTimeout(async () => {
         console.log("Auto-playing audio after scan...");
         try {
           await handlePlayPause(currentNote.transcript);
-          setHasAutoPlayed(true);
         } catch (error) {
           console.log("Auto-play blocked, showing play prompt:", error);
           setShowPlayPrompt(true);
-          setHasAutoPlayed(true); // Don't retry auto-play
         }
       }, 800);
       return () => clearTimeout(timer);
