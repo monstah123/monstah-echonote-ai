@@ -224,7 +224,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     if (note) {
       setCurrentNote(note);
       setTranscription(note.transcript);
-      setHasAutoPlayed(false); // Reset auto-play flag for new note
+      setHasAutoPlayed(false);
+      setIsGeneratingSpeech(false); // Reset in case stuck from previous error
+      setIsPlayingAudio(false);
     }
     return cleanupAudio;
   }, [note, cleanupAudio]);
