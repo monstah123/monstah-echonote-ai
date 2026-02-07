@@ -450,6 +450,13 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
               onSave(updatedNote);
             }
             showToast("Transcription complete!");
+            playNotificationSound();
+
+            // Auto-play the audio after transcription if requested
+            // We need to wait a tiny bit for state to settle or just call it
+            setTimeout(() => {
+              handlePlayPause();
+            }, 500);
           }
         } catch (error) {
           console.error("Transcription error:", error);
