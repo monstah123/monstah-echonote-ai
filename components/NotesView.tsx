@@ -81,69 +81,62 @@ interface AudioWaveformVisualizerProps {
   isPlaying: boolean;
 }
 
-const AudioWaveformVisualizer: React.FC<AudioWaveformVisualizerProps> = ({ analyser, isPlaying }) => {
-  const [dataArray, setDataArray] = useState<Uint8Array | null>(null);
-  const animationFrameIdRef = useRef<number | null>(null);
+const AudioWaveformVisualizer: React.FC<AudioWaveformVisualizerProps> = ({ isPlaying }) => {
+  const [bars, setBars] = useState<number[]>(Array(24).fill(0.1));
+  const animationRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (analyser) {
-      const bufferLength = analyser.frequencyBinCount;
-      setDataArray(new Uint8Array(bufferLength));
-    }
-  }, [analyser]);
-
-  const draw = useCallback(() => {
-    if (!analyser || !dataArray) return;
-
-    animationFrameIdRef.current = requestAnimationFrame(draw);
-    const currentData = dataArray;
-    const newData = new Uint8Array(currentData.length);
-    analyser.getByteFrequencyData(newData);
-    setDataArray(newData);
-  }, [analyser, dataArray]);
-
-  useEffect(() => {
-    if (isPlaying && analyser) {
-      draw();
+    if (isPlaying) {
+      const animate = () => {
+        setBars(prev => prev.map((_, i) => {
+          // Create wave-like motion with varying frequencies
+          const time = Date.now() / 100;
+          const wave1 = Math.sin(time + i * 0.5) * 0.3;
+          const wave2 = Math.sin(time * 1.5 + i * 0.3) * 0.2;
+          const wave3 = Math.cos(time * 0.7 + i * 0.8) * 0.15;
+          const randomness = Math.random() * 0.15;
+          const base = 0.3 + wave1 + wave2 + wave3 + randomness;
+          return Math.max(0.1, Math.min(1, base));
+        }));
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animate();
     } else {
-      if (animationFrameIdRef.current) {
-        cancelAnimationFrame(animationFrameIdRef.current);
-        animationFrameIdRef.current = null;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
+      // Fade bars to idle state
+      setBars(Array(24).fill(0.1));
     }
 
     return () => {
-      if (animationFrameIdRef.current) {
-        cancelAnimationFrame(animationFrameIdRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPlaying, analyser, draw]);
-
-  if (!dataArray) return null;
-
-  const currentData = dataArray;
-  const barWidthPercent = 100 / currentData.length;
-  const gapPercent = barWidthPercent * 0.15;
-  const rectWidthPercent = barWidthPercent - gapPercent;
+  }, [isPlaying]);
 
   return (
-    <svg width="100%" height="40" preserveAspectRatio="none">
-      {Array.from(currentData).map((value: number, i: number) => {
-        const height = (value / 255) * 40;
+    <div className="flex items-center justify-center h-full gap-[2px] px-2">
+      {bars.map((height, i) => {
+        // Create gradient colors from purple to blue
+        const hue = 250 + (i / bars.length) * 30; // 250-280 range (purple to blue)
         return (
-          <rect
+          <div
             key={i}
-            x={`${i * barWidthPercent}%`}
-            y={40 - height}
-            width={`${rectWidthPercent}%`}
-            height={height}
-            className="text-brand-blue"
-            fill="currentColor"
-            rx="1"
+            className="rounded-full transition-all duration-75 ease-out"
+            style={{
+              width: '3px',
+              height: `${Math.max(4, height * 40)}px`,
+              background: isPlaying
+                ? `linear-gradient(to top, hsl(${hue}, 80%, 60%), hsl(${hue + 30}, 90%, 70%))`
+                : 'rgba(77, 74, 216, 0.3)',
+              boxShadow: isPlaying ? `0 0 8px hsl(${hue}, 80%, 60%)` : 'none',
+            }}
           />
         );
       })}
-    </svg>
+    </div>
   );
 };
 
