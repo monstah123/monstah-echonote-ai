@@ -206,7 +206,7 @@ const App: React.FC = () => {
   }, []);
 
   const startNewNote = useCallback(() => {
-    createAndActivateNote(`Meeting ${new Date().toLocaleDateString()}`, '');
+    createAndActivateNote(`Note ${new Date().toLocaleDateString()}`, '');
   }, [createAndActivateNote]);
 
   const saveNote = useCallback((noteToSave: Note) => {
