@@ -351,6 +351,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const handleStartRecording = async () => {
     if (isRecording) return;
 
+    // Initialize/Resume audio context for playback later (iOS requires user interaction to unlock AudioContext)
+    if (!outputAudioContextRef.current) {
+      outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (outputAudioContextRef.current.state === 'suspended') {
+      await outputAudioContextRef.current.resume();
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
