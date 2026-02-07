@@ -270,6 +270,12 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       return;
     }
 
+    // Stop any currently playing source first
+    if (audioSourceNodeRef.current) {
+      try { audioSourceNodeRef.current.stop(); } catch (e) { }
+      audioSourceNodeRef.current = null;
+    }
+
     if (audioBufferRef.current) {
       if (outputAudioContextRef.current?.state === 'suspended') {
         await outputAudioContextRef.current.resume();
