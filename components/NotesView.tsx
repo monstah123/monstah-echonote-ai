@@ -466,14 +466,34 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     recorder.stop();
   }, [transcription, currentNote, onSave, showToast]);
 
+  // Clear audio buffer when voice changes to ensure new audio is generated with correct voice
+  useEffect(() => {
+    if (audioBufferRef.current) {
+      handleStopAudio();
+      audioBufferRef.current = null;
+    }
+  }, [selectedVoice]);
+
   const handleSummarize = async () => {
     if (!currentNote || !currentNote.transcript) return;
-    setIsSummarizing(true);
+    setIsSummarizing(true); // Start loading state
     const summary = await summarizeTranscript(currentNote.transcript);
     const updatedNote = { ...currentNote, summary };
     setCurrentNote(updatedNote);
     onSave(updatedNote);
-    setIsSummarizing(false);
+
+    // Keep isSummarizing true to show the modal with the result effectively, 
+    // or toggle a separate state. For now, reusing isSummarizing for modal visibility 
+    // requires us to keep it true if summary exists.
+    // However, the button disables if isSummarizing is true.
+    // Let's separate the states for clarity?
+    // Actually, looking at the render logic:
+    // {currentNote.summary && isSummarizing && ( ... Modal ... )}
+    // So yes, we must keep isSummarizing = true to show the modal.
+    // But we need to stop the *loading* spinner on the button.
+    // The button shows spinner if `isSummarizing && !currentNote.summary`.
+    // So if we have a summary and isSummarizing is true, the button shows "View Summary", which is correct.
+
     playNotificationSound(); // Play chime when summary is ready
     showToast("Summary ready!");
   };
@@ -612,27 +632,33 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
       {/* Scrollable Transcript Area */}
       <div className="flex-1 min-h-0 overflow-y-auto px-1 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-        <div className="relative">
+        <div className="relative h-full">
           <textarea
             value={transcription}
             onChange={(e) => setTranscription(e.target.value)}
             readOnly={isRecording}
             placeholder="Start speaking to begin your note..."
-            className="w-full min-h-[150px] max-h-none bg-transparent resize-none focus:outline-none text-base sm:text-lg leading-relaxed text-light-text dark:text-gray-300 placeholder-light-text-secondary dark:placeholder-dark-text-secondary overflow-y-auto"
+            className="w-full h-full bg-transparent resize-none focus:outline-none text-base sm:text-lg leading-relaxed text-light-text dark:text-gray-300 placeholder-light-text-secondary dark:placeholder-dark-text-secondary overflow-y-auto p-2"
             aria-label="Note transcript"
-            style={{ height: 'auto' }}
-            rows={Math.max(8, transcription.split('\n').length + 2)}
           />
-          {isRecording && <span className="absolute top-1 right-1 animate-pulse w-3 h-3 bg-red-500 rounded-full"></span>}
+          {isRecording && <span className="absolute top-3 right-3 animate-pulse w-3 h-3 bg-red-500 rounded-full"></span>}
         </div>
-
-        {currentNote.summary && (
-          <div className="my-4 p-3 sm:p-4 bg-light-bg dark:bg-dark-card rounded-lg">
-            <h3 className="font-bold mb-2 text-sm sm:text-base text-light-text dark:text-gray-100">Summary</h3>
-            <p className="text-xs sm:text-sm whitespace-pre-wrap text-light-text-secondary dark:text-gray-400">{currentNote.summary}</p>
-          </div>
-        )}
       </div>
+
+      {/* Summary Modal */}
+      {currentNote.summary && isSummarizing && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsSummarizing(false)}>
+          <div className="bg-light-card dark:bg-dark-card p-6 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-light-text dark:text-gray-100">Summary</h3>
+              <button onClick={() => setIsSummarizing(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <Check size={24} />
+              </button>
+            </div>
+            <p className="text-sm sm:text-base whitespace-pre-wrap text-light-text-secondary dark:text-gray-300 leading-relaxed">{currentNote.summary}</p>
+          </div>
+        </div>
+      )}
 
       {/* Fixed Footer with Recording Button */}
       <div className="flex-shrink-0 pt-2 pb-16 sm:pb-4 bg-light-bg/80 dark:bg-dark-bg/80 backdrop-blur-sm">
@@ -655,12 +681,18 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         {transcription && !isRecording && (
           <div className="flex gap-2 sm:gap-4 px-1">
             <button
-              onClick={handleSummarize}
-              disabled={isSummarizing}
-              className="flex-1 bg-light-card dark:bg-dark-card py-3 sm:py-4 px-3 sm:px-4 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm sm:text-base text-light-text dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors shadow-sm touch-manipulation"
+              onClick={() => {
+                if (currentNote.summary) {
+                  setIsSummarizing(true); // Re-use this state to show modal if summary exists
+                } else {
+                  handleSummarize();
+                }
+              }}
+              disabled={isSummarizing && !currentNote.summary}
+              className="flex-1 bg-light-card dark:bg-dark-card py-3 sm:py-4 px-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 text-sm sm:text-base text-light-text dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors shadow-sm touch-manipulation"
             >
-              {isSummarizing ? <Loader size={18} className="animate-spin" /> : <FileText size={18} />}
-              Summarize
+              {isSummarizing && !currentNote.summary ? <Loader size={18} className="animate-spin" /> : <FileText size={18} />}
+              {currentNote.summary ? "View Summary" : "Summarize"}
             </button>
             <button
               onClick={() => onStartChat(currentNote)}
