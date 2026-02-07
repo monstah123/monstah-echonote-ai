@@ -347,17 +347,15 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }
 
     try {
-      // Calculate timeout based on text length (5s base + 5s per 1000 chars, minimum 30s)
-      const estimatedChunks = Math.ceil(text.length / 4000);
-      const timeoutMs = Math.max(30000, 10000 + (estimatedChunks * 10000));
-      console.log(`Audio generation timeout set to ${timeoutMs / 1000}s for ${estimatedChunks} chunks`);
+      showToast("Step 1: Starting...");
 
       const fetchPromise = generateSpeechFromText(text, selectedVoice);
-      const timeoutPromise = new Promise<Blob>((_, reject) =>
-        setTimeout(() => reject(new Error("Request timed out. Try with shorter text.")), timeoutMs)
-      );
 
-      const audioBlob = await Promise.race([fetchPromise, timeoutPromise]) as Blob;
+      showToast("Step 2: Calling API...");
+
+      const audioBlob = await fetchPromise;
+
+      showToast("Step 3: Got audio data!");
 
       if (!audioBlob || audioBlob.size === 0) {
         throw new Error("No audio data received.");
