@@ -378,7 +378,7 @@ const App: React.FC = () => {
           <BottomNav currentView={currentView} setCurrentView={handleNavChange} onNewNote={startNewNote} />
 
           {toastMessage && (
-            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-gray-900 dark:bg-gray-200 text-white dark:text-black py-2 px-5 rounded-full shadow-lg z-50 animate-fade-in-out">
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-gradient-to-r from-brand-blue to-purple-600 text-white font-semibold py-3 px-6 rounded-full shadow-xl z-50 animate-fade-in-out border border-purple-400/30">
               {toastMessage}
             </div>
           )}
