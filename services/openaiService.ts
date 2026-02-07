@@ -201,6 +201,9 @@ export const transcribeAudioFile = async (base64Data: string, mimeType: string):
     if (!base64Data || !mimeType) return "Invalid file data provided.";
 
     try {
+        // Log size for debugging
+        console.log(`Transcribing audio. Base64 length: ${base64Data.length}. MimeType: ${mimeType}`);
+
         // Convert base64 to Blob
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);

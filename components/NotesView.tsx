@@ -395,68 +395,74 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }
   };
 
-  const handleStopRecording = useCallback(async () => {
-    setIsRecording(false);
+  const handleStopRecording = useCallback(() => {
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') return;
 
+    setIsRecording(false);
     const recorder = mediaRecorderRef.current;
     const stream = streamRef.current;
 
-    // Wait for the MediaRecorder to properly stop and collect all data
-    if (recorder && recorder.state !== 'inactive') {
-      await new Promise<void>((resolve) => {
-        recorder.onstop = () => resolve();
-        recorder.stop();
-      });
-    }
-
-    // Stop all audio tracks
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    // Transcribe the recorded audio using OpenAI Whisper
-    if (audioChunksRef.current.length > 0) {
-      showToast("Transcribing audio...");
-      try {
-        // Get the actual mime type from the recorder
-        const mimeType = recorder?.mimeType || 'audio/webm';
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-
-        console.log(`Audio blob size: ${audioBlob.size} bytes, type: ${mimeType}`);
-
-        const arrayBuffer = await audioBlob.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuffer);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        const base64Audio = btoa(binary);
-
-        const newTranscription = await transcribeAudioFile(base64Audio, mimeType);
-
-        const updatedTranscript = transcription
-          ? transcription + ' ' + newTranscription
-          : newTranscription;
-
-        setTranscription(updatedTranscript);
-
-        if (currentNote) {
-          const updatedNote = { ...currentNote, transcript: updatedTranscript };
-          setCurrentNote(updatedNote);
-          onSave(updatedNote);
-        }
-
-        showToast("Transcription complete!");
-      } catch (error) {
-        console.error("Transcription error:", error);
-        showToast("Failed to transcribe audio.");
+    // Define what to do when recording actually stops and data is available
+    recorder.onstop = async () => {
+      // Stop all audio tracks to release microphone
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
 
-      audioChunksRef.current = [];
-    }
+      // Transcribe the recorded audio using OpenAI Whisper
+      if (audioChunksRef.current.length > 0) {
+        showToast("Transcribing audio...");
+        try {
+          // Get the actual mime type from the recorder or fallback
+          const mimeType = recorder.mimeType || 'audio/webm';
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
 
-    mediaRecorderRef.current = null;
+          console.log(`Audio blob size: ${audioBlob.size} bytes, type: ${mimeType}`);
+
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          // Use a chunked approach for large strings to avoid stack overflow
+          const CHUNK_SIZE = 8192;
+          for (let i = 0; i < bytes.byteLength; i += CHUNK_SIZE) {
+            const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+            binary += String.fromCharCode.apply(null, Array.from(chunk));
+          }
+          const base64Audio = btoa(binary);
+
+          const newTranscription = await transcribeAudioFile(base64Audio, mimeType);
+
+          // Check specifically for the error message returned by the service
+          if (newTranscription.startsWith("An error occurred") || newTranscription.startsWith("Could not transcribe")) {
+            showToast(newTranscription);
+          } else {
+            const updatedTranscript = transcription
+              ? transcription + ' ' + newTranscription
+              : newTranscription;
+
+            setTranscription(updatedTranscript);
+
+            if (currentNote) {
+              const updatedNote = { ...currentNote, transcript: updatedTranscript };
+              setCurrentNote(updatedNote);
+              onSave(updatedNote);
+            }
+            showToast("Transcription complete!");
+          }
+        } catch (error) {
+          console.error("Transcription error:", error);
+          showToast("Failed to transcribe audio.");
+        }
+
+        audioChunksRef.current = [];
+      }
+
+      mediaRecorderRef.current = null;
+    };
+
+    // Trigger the stop
+    recorder.stop();
   }, [transcription, currentNote, onSave, showToast]);
 
   const handleSummarize = async () => {
