@@ -192,7 +192,7 @@ export const generateSpeechFromText = async (text: string, voice: string): Promi
         }
 
         // Return Blob directly to avoid expensive base64 conversion on mobile
-        return new Blob([combinedBytes], { type: 'audio/mp3' });
+        return new Blob([combinedBytes], { type: 'audio/mpeg' });
 
     } catch (error) {
         console.error("Error generating speech from chunks:", error);
