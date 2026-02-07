@@ -109,7 +109,9 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
                         <div onClick={onStartScan} className="cursor-pointer">
                             <ImportIcon icon={<Scan size={20} className="text-brand-blue" />} label="Scan" />
                         </div>
-                        <ImportIcon icon={<Type size={20} className="text-light-text-secondary dark:dark-text-secondary" />} label="Type" />
+                        <div onClick={onNewNote} className="cursor-pointer">
+                            <ImportIcon icon={<Type size={20} className="text-light-text-secondary dark:dark-text-secondary" />} label="Type" />
+                        </div>
                         <ImportIcon icon={<Link size={20} className="text-light-text-secondary dark:dark-text-secondary" />} label="Link" />
                         <ImportIcon icon={<Plus size={20} className="text-light-text-secondary dark:dark-text-secondary" />} label="More" />
                     </div>
