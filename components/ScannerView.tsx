@@ -53,6 +53,15 @@ const ScannerView: React.FC<ScannerViewProps> = ({ onCapture, onClose }) => {
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
             const base64Image = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+            // MOBILE FIX: Create audio element during user gesture
+            // Silent MP3 to preserve gesture context
+            const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA";
+            const audio = new Audio(SILENT_MP3);
+
+            // Try to play silent audio to unlock on mobile
+            audio.play().catch(e => console.log("Silent audio play failed:", e));
+
             onCapture(base64Image);
         }
     };

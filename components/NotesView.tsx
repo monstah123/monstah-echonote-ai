@@ -160,6 +160,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const [isVoiceDropdownOpen, setIsVoiceDropdownOpen] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
+  const [showPlayPrompt, setShowPlayPrompt] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -202,19 +203,58 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     setIsGeneratingSpeech(false);
   }, []);
 
-  // ... (keep auto-play effect)
+  // Auto-play effect - triggers when shouldAutoPlay is true (e.g., after scanning)
+  useEffect(() => {
+    if (shouldAutoPlay && !hasAutoPlayed && currentNote?.transcript && currentNote.transcript.trim().length > 0) {
+      // Small delay to ensure UI has settled
+      const timer = setTimeout(async () => {
+        console.log("Auto-playing audio after scan...");
+        try {
+          await handlePlayPause(currentNote.transcript);
+          setHasAutoPlayed(true);
+        } catch (error) {
+          console.log("Auto-play blocked, showing play prompt:", error);
+          setShowPlayPrompt(true);
+          setHasAutoPlayed(true); // Don't retry auto-play
+        }
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldAutoPlay, hasAutoPlayed, currentNote?.transcript]);
 
   useEffect(() => {
     if (note) {
       setCurrentNote(note);
       setTranscription(note.transcript);
+      setHasAutoPlayed(false); // Reset auto-play flag for new note
     }
     return cleanupAudio;
   }, [note, cleanupAudio]);
 
-  // ... (keep text update effect)
+  // Update transcript in currentNote when user edits
+  useEffect(() => {
+    if (currentNote && transcription !== currentNote.transcript) {
+      const saveTimer = setTimeout(() => {
+        const updatedNote = { ...currentNote, transcript: transcription };
+        setCurrentNote(updatedNote);
+        onSave(updatedNote);
+      }, 1000); // Debounce saves
+      return () => clearTimeout(saveTimer);
+    }
+  }, [transcription, currentNote, onSave]);
 
-  // ... (keep click outside effect)
+  // Close voice dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (voiceDropdownRef.current && !voiceDropdownRef.current.contains(event.target as Node)) {
+        setIsVoiceDropdownOpen(false);
+      }
+    };
+    if (isVoiceDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isVoiceDropdownOpen]);
 
   // Silent MP3 to unlock mobile audio
   const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA";
@@ -331,6 +371,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         console.error("Playback failed (possibly autoplay blocked):", playError);
         setIsPlayingAudio(false);
         showToast("Tap Play again to listen.");
+        throw playError; // Propagate error so auto-play effect can handle it
       }
 
     } catch (error) {
@@ -753,6 +794,39 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
           </div>
         )}
       </div>
+
+      {/* Tap to Play Prompt (for when auto-play is blocked on mobile) */}
+      {showPlayPrompt && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => {
+            setShowPlayPrompt(false);
+            handlePlayPause();
+          }}
+        >
+          <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl p-8 text-center max-w-sm animate-fade-in">
+            <div className="w-20 h-20 mx-auto mb-4 bg-brand-blue rounded-full flex items-center justify-center animate-pulse">
+              <Play size={40} className="text-white ml-1" />
+            </div>
+            <h3 className="text-2xl font-bold text-light-text dark:text-dark-text mb-2">
+              Ready to Listen!
+            </h3>
+            <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6">
+              Tap anywhere to play your scanned text
+            </p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPlayPrompt(false);
+                handlePlayPause();
+              }}
+              className="w-full bg-brand-blue text-white py-4 px-6 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-blue/30"
+            >
+              Play Now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
