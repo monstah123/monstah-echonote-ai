@@ -380,9 +380,10 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         throw playError; // Propagate error so auto-play effect can handle it
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating/playing speech:", error);
-      showToast("Sorry, couldn't generate audio.");
+      const errorMsg = error?.message || "Unknown error";
+      showToast(`Audio error: ${errorMsg.substring(0, 50)}`);
       setIsPlayingAudio(false);
       // Clean up if failed
       audio.pause();
