@@ -1,0 +1,130 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoNote AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      @keyframes fade-in-out {
+        0% {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        15%, 85% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      .animate-fade-in-out {
+        animation: fade-in-out 3s ease-in-out forwards;
+      }
+      @keyframes fade-in {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.2s ease-out forwards;
+      }
+      @keyframes waveform-animation {
+        0% { transform: scaleY(0.1); }
+        50% { transform: scaleY(1); }
+        100% { transform: scaleY(0.1); }
+      }
+      .waveform-bar {
+        animation: waveform-animation 1.2s ease-in-out infinite;
+      }
+      
+      /* Breathing glow animation */
+      @keyframes breathing-glow {
+        0%, 100% {
+          box-shadow: 
+            0 0 20px rgba(77, 74, 216, 0.3),
+            0 0 40px rgba(77, 74, 216, 0.2),
+            0 0 60px rgba(138, 43, 226, 0.1),
+            inset 0 0 20px rgba(77, 74, 216, 0.05);
+          border-color: rgba(77, 74, 216, 0.5);
+        }
+        50% {
+          box-shadow: 
+            0 0 30px rgba(77, 74, 216, 0.5),
+            0 0 60px rgba(77, 74, 216, 0.3),
+            0 0 90px rgba(138, 43, 226, 0.2),
+            inset 0 0 30px rgba(77, 74, 216, 0.1);
+          border-color: rgba(138, 43, 226, 0.7);
+        }
+      }
+      
+      .breathing-border {
+        border: 2px solid rgba(77, 74, 216, 0.5);
+        border-radius: 24px;
+        animation: breathing-glow 4s ease-in-out infinite;
+      }
+      
+      /* Gradient background behind the app */
+      .app-glow-wrapper {
+        background: linear-gradient(135deg, 
+          rgba(77, 74, 216, 0.15) 0%, 
+          rgba(138, 43, 226, 0.1) 50%, 
+          rgba(77, 74, 216, 0.15) 100%
+        );
+        padding: 8px;
+        border-radius: 28px;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              'light-bg': '#f7f8fa',
+              'dark-bg': '#0D0E12',
+              'light-card': '#ffffff',
+              'dark-card': '#1C1D2A',
+              'light-text': '#111827',
+              'dark-text': '#E0E1E9',
+              'light-text-secondary': '#6b7280',
+              'dark-text-secondary': '#8A8C99',
+              'brand-blue': '#4D4AD8',
+              'brand-blue-light': '#e0e7ff',
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.5.136",
+    "mammoth": "https://esm.sh/mammoth@1.8.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

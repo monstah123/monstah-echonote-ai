@@ -1,0 +1,7 @@
+{
+  "name": "Monstah EchoNote AI",
+  "description": "An intelligent meeting assistant that takes notes, provides summaries, and allows you to chat with your meeting transcripts to find key information instantly.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
