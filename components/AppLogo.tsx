@@ -8,15 +8,15 @@ const AppLogo: React.FC = () => {
                 {/* Pulsing Wave Effect */}
                 <span className="absolute inline-flex h-full w-full rounded-full bg-brand-blue opacity-20 animate-ping"></span>
 
-                {/* Logo Body with Brighter Gradient */}
-                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 via-brand-blue to-purple-600 shadow-lg shadow-brand-blue/50 overflow-hidden transform transition-transform hover:scale-105 active:scale-95 border border-white/10">
-                    {/* The "M" - stylized using SVG paths to look sharp */}
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)] z-10">
+                {/* Logo Body with Darker Background for Contrast */}
+                <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-900 to-purple-900 shadow-lg shadow-purple-500/30 overflow-hidden transform transition-transform hover:scale-105 active:scale-95 border border-white/20">
+                    {/* The "M" - Neon Green for maximum visibility */}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-lime-400 drop-shadow-[0_0_8px_rgba(163,230,53,0.8)] z-10">
                         <path d="M4 20V8L12 14L20 8V20" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
 
-                    {/* Stronger Inner Sheen/Gloss Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-white/60 pointer-events-none mix-blend-overlay"></div>
+                    {/* Intense Glass Reflection */}
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/40 pointer-events-none"></div>
                 </div>
             </div>
 
