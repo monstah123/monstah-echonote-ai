@@ -26,3 +26,11 @@ export interface ChatMessage {
   sender: MessageSender;
   text: string;
 }
+
+export interface UserStats {
+  totalTimeSavedMs: number;
+  dailyListeningTimeMs: number;
+  averageSpeed: number;
+  dailyGoalMs: number;
+  lastUpdatedDate: string; // to reset daily stats
+}

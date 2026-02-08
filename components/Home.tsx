@@ -1,7 +1,7 @@
 
 import React from 'react';
 import AppLogo from './AppLogo';
-import { Note } from '../types';
+import { Note, UserStats } from '../types';
 import { Sun, Moon, File, Scan, Type, Link, Plus, Headphones, PauseCircle, User, Droplet, PlayCircle } from 'lucide-react';
 
 interface HomeProps {
@@ -12,6 +12,7 @@ interface HomeProps {
     onStartScan: () => void;
     recentNote?: Note;
     onOpenNote?: (note: Note) => void;
+    userStats?: UserStats;
 }
 
 
@@ -59,7 +60,26 @@ const KindleIcon: React.FC<{ size: number; className?: string }> = ({ size, clas
 const GmailIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => <svg className={className} width={size} height={size} viewBox="0 0 24 24"><path fill="#ea4335" d="M5,20.5V11L12,5.5L19,11V20.5H5Z" /><path fill="#c5221f" d="M19,20.5V11L12,16.5L5,11V20.5H19Z" /><path fill="#4285f4" d="M5,9,12,3.5,19,9,12,14.5Z" /></svg>;
 
 
-const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileImport, onStartScan, recentNote, onOpenNote }) => {
+const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileImport, onStartScan, recentNote, onOpenNote, userStats }) => {
+
+    // Format helpers
+    const formatTimeSaved = (ms: number) => {
+        const hours = ms / (1000 * 60 * 60);
+        return hours < 0.1 ? (ms / 60000).toFixed(0) + 'm' : hours.toFixed(1) + 'h';
+    };
+
+    const formatDailyTime = (ms: number) => {
+        const h = Math.floor(ms / (1000 * 60 * 60));
+        const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        if (h === 0) return `${m}m`;
+        return `${h}h ${m}m`;
+    };
+
+    const avgSpeed = userStats?.averageSpeed ? userStats.averageSpeed.toFixed(1) : '1.0';
+    const totalSaved = userStats ? formatTimeSaved(userStats.totalTimeSavedMs) : '0m';
+    const dailyTime = userStats ? formatDailyTime(userStats.dailyListeningTimeMs) : '0m';
+    const dailyGoal = userStats ? formatDailyTime(userStats.dailyGoalMs) : '40m';
+
     return (
         <div className="flex flex-col space-y-6 h-full overflow-y-auto pb-16 px-4">
             <header className="flex justify-between items-center pt-2 pb-2">
@@ -71,19 +91,23 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
 
             <section className="flex gap-4">
                 <div className="bg-light-card dark:bg-dark-card p-4 rounded-3xl shadow-sm flex-1">
-                    <p className="text-3xl font-bold text-light-text dark:text-dark-text">5.6h</p>
+                    <p className="text-3xl font-bold text-light-text dark:text-dark-text">{totalSaved}</p>
                     <p className="text-sm text-light-text-secondary dark:dark-text-secondary mt-1">Time Saved</p>
                     <p className="text-xs text-light-text-secondary dark:dark-text-secondary mt-2">
-                        You're saving time thanks to <span className="text-green-400 font-semibold">1.4x average speed</span>
+                        You're saving time thanks to <span className="text-green-400 font-semibold">{avgSpeed}x average speed</span>
                     </p>
                 </div>
-                <div className="bg-light-card dark:bg-dark-card p-4 rounded-3xl shadow-sm flex-1">
-                    <div className="flex justify-between items-start">
-                        <p className="text-3xl font-bold text-light-text dark:text-dark-text">2h 32m</p>
-                        <Droplet className="text-blue-500" size={20} />
+                <div className="bg-light-card dark:bg-dark-card p-4 rounded-3xl shadow-sm flex-1 relative overflow-hidden">
+                    <div className="relative z-10">
+                        <div className="flex justify-between items-start">
+                            <p className="text-3xl font-bold text-light-text dark:text-dark-text">{dailyTime}</p>
+                            <Droplet size={16} className="text-brand-blue" />
+                        </div>
+                        <p className="text-sm text-light-text-secondary dark:dark-text-secondary mt-1">Daily goal: {dailyGoal}</p>
+                        <p className="text-xs text-light-text-secondary dark:dark-text-secondary mt-2">Keep it up! 🔥</p>
                     </div>
-                    <p className="text-sm text-light-text-secondary dark:dark-text-secondary mt-1">Daily goal: 40m</p>
-                    <p className="text-xs text-light-text-secondary dark:dark-text-secondary mt-2">Yesterday: 1h 12m</p>
+                    {/* Progress Ring Background (simplified) */}
+                    <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-4 border-brand-blue/10"></div>
                 </div>
             </section>
 

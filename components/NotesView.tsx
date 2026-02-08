@@ -11,6 +11,7 @@ interface NotesViewProps {
   onBack: () => void;
   showToast: (message: string) => void;
   shouldAutoPlay?: boolean;
+  onStatsUpdate?: (realTimeMs: number, savedTimeMs: number) => void;
 }
 
 // --- Audio Helper Functions ---
@@ -141,11 +142,32 @@ const AudioWaveformVisualizer: React.FC<AudioWaveformVisualizerProps> = ({ isPla
 };
 
 
-const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack, showToast, shouldAutoPlay }) => {
+const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack, showToast, shouldAutoPlay, onStatsUpdate }) => {
   const [currentNote, setCurrentNote] = useState<Note | null>(note);
+  const [transcription, setTranscription] = useState(note?.transcript || '');
   const [isRecording, setIsRecording] = useState(false);
+
+  // Stats tracking refs
+  const statsSessionStartRef = useRef<number | null>(null);
+  const statsLastSpeedRef = useRef<number>(1.0);
+
+  const updateStats = useCallback((isStopping = false) => {
+    if (statsSessionStartRef.current) {
+      const now = Date.now();
+      const duration = now - statsSessionStartRef.current;
+      if (duration > 500) { // Only count if > 0.5s
+        const saved = duration * (statsLastSpeedRef.current - 1);
+        onStatsUpdate?.(duration, saved);
+      }
+      if (isStopping) {
+        statsSessionStartRef.current = null;
+      } else {
+        statsSessionStartRef.current = now;
+      }
+    }
+  }, [onStatsUpdate]);
+
   const [isSummarizing, setIsSummarizing] = useState(false);
-  const [transcription, setTranscription] = useState('');
   const [driveSaveState, setDriveSaveState] = useState<'idle' | 'saving' | 'success'>('idle');
   const [isGeneratingSpeech, setIsGeneratingSpeech] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -263,11 +285,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     // If playing, pause it
     if (isPlayingAudio && !textToPlay) {
       if (audioElementRef.current) {
+        updateStats(true); // Commit stats before pause
         audioElementRef.current.pause();
         setIsPlayingAudio(false);
       }
       return;
     }
+
+    // ...
 
     const text = textToPlay || currentNote?.transcript;
     if (!text || text.trim().length === 0) {
@@ -287,9 +312,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         audioElementRef.current = audio;
 
         // Re-bind listeners
-        audio.onended = () => { setIsPlayingAudio(false); setProgress(0); };
-        audio.onpause = () => setIsPlayingAudio(false);
-        audio.onplay = () => setIsPlayingAudio(true);
+        audio.onended = () => { setIsPlayingAudio(false); setProgress(0); updateStats(true); };
+        audio.onpause = () => { setIsPlayingAudio(false); updateStats(true); };
+        audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = playbackSpeed; };
         audio.ontimeupdate = () => {
           if (audio.duration && !isNaN(audio.duration)) {
             setProgress(audio.currentTime / audio.duration);
@@ -353,9 +378,9 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       audio.playbackRate = playbackSpeed;
       audioElementRef.current = audio;
 
-      audio.onended = () => { setIsPlayingAudio(false); setProgress(0); };
-      audio.onpause = () => setIsPlayingAudio(false);
-      audio.onplay = () => setIsPlayingAudio(true);
+      audio.onended = () => { setIsPlayingAudio(false); setProgress(0); updateStats(true); };
+      audio.onpause = () => { setIsPlayingAudio(false); updateStats(true); };
+      audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = playbackSpeed; };
       audio.ontimeupdate = () => {
         if (audio.duration && !isNaN(audio.duration)) {
           setProgress(audio.currentTime / audio.duration);
@@ -381,12 +406,13 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   };
 
   const handleStopAudio = useCallback(() => {
+    updateStats(true); // Commit stats before stopping
     if (audioElementRef.current) {
       audioElementRef.current.pause();
       audioElementRef.current.currentTime = 0;
     }
     setIsPlayingAudio(false);
-  }, []);
+  }, [updateStats]);
 
   const handleSelectVoice = (voiceId: string) => {
     setSelectedVoice(voiceId);
@@ -409,6 +435,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     const currentIndex = playbackSpeeds.indexOf(playbackSpeed);
     const nextIndex = (currentIndex + 1) % playbackSpeeds.length;
     const newSpeed = playbackSpeeds[nextIndex];
+
+    // Stats: Commit current chunk before speed change
+    if (isPlayingAudio) {
+      updateStats(false);
+      statsSessionStartRef.current = Date.now();
+    }
+    statsLastSpeedRef.current = newSpeed;
+
     setPlaybackSpeed(newSpeed);
     if (audioElementRef.current) {
       audioElementRef.current.playbackRate = newSpeed;

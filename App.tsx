@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { AppView, Note } from './types';
+import { AppView, Note, UserStats } from './types';
 import BottomNav from './components/BottomNav';
 import Home from './components/Home';
 import NotesView from './components/NotesView';
@@ -362,20 +362,63 @@ const App: React.FC = () => {
 
   const recentNote = notes.find(n => n.id === lastOpenedNoteId);
 
+  // Stats Logic
+  const helperGetInitialStats = (): UserStats => {
+    try {
+      const saved = localStorage.getItem('USER_STATS');
+      if (saved) return JSON.parse(saved);
+    } catch (e) { console.error("Stats parse error", e); }
+    return {
+      totalTimeSavedMs: 0,
+      dailyListeningTimeMs: 0,
+      averageSpeed: 1.0,
+      dailyGoalMs: 40 * 60 * 1000,
+      lastUpdatedDate: new Date().toDateString()
+    };
+  };
+
+  const [userStats, setUserStats] = useState<UserStats>(helperGetInitialStats);
+
+  const handleStatsUpdate = (realTimeMs: number, savedTimeMs: number) => {
+    setUserStats(prev => {
+      const today = new Date().toDateString();
+      const isNewDay = today !== prev.lastUpdatedDate;
+
+      const newDaily = isNewDay ? realTimeMs : prev.dailyListeningTimeMs + realTimeMs;
+      const newTotalSaved = prev.totalTimeSavedMs + savedTimeMs;
+
+      // Simple moving average for speed (new chunk weight 10%)
+      const chunkSpeed = (realTimeMs > 0) ? (savedTimeMs / realTimeMs) + 1 : 1;
+      // Avoid NaN or Infinity
+      const validChunkSpeed = isFinite(chunkSpeed) ? chunkSpeed : 1.0;
+      const newAvgSpeed = prev.averageSpeed * 0.9 + validChunkSpeed * 0.1;
+
+      const newStats = {
+        totalTimeSavedMs: newTotalSaved,
+        dailyListeningTimeMs: newDaily,
+        dailyGoalMs: prev.dailyGoalMs,
+        averageSpeed: newAvgSpeed,
+        lastUpdatedDate: today
+      };
+      localStorage.setItem('USER_STATS', JSON.stringify(newStats));
+      return newStats;
+    });
+  };
+
   const renderView = () => {
     switch (currentView) {
       case AppView.Home:
-        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} onStartScan={handleStartScan} recentNote={recentNote} onOpenNote={handleSelectNote} />;
+        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} onStartScan={handleStartScan} recentNote={recentNote} onOpenNote={handleSelectNote} userStats={userStats} />;
       case AppView.Scanner:
         return <ScannerView onCapture={handleCapture} onClose={() => { setShouldAutoPlay(false); setCurrentView(AppView.Home); }} />;
       case AppView.MyFiles:
         return <MyFilesView notes={notes} onSelectNote={handleSelectNote} onRequestDelete={requestDeleteNote} onNewNote={startNewNote} />;
       case AppView.Notes:
-        return <NotesView note={activeNote} onSave={saveNote} onStartChat={navigateToChat} onBack={handleBackToMyFiles} showToast={showToast} shouldAutoPlay={shouldAutoPlay} />;
+        return <NotesView note={activeNote} onSave={saveNote} onStartChat={navigateToChat} onBack={handleBackToMyFiles} showToast={showToast} shouldAutoPlay={shouldAutoPlay} onStatsUpdate={handleStatsUpdate} />;
       case AppView.Chat:
         return <ChatView note={activeNote} onBack={handleBackToNotes} />;
       default:
-        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} recentNote={recentNote} onOpenNote={handleSelectNote} />;
+        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} recentNote={recentNote} onOpenNote={handleSelectNote} userStats={userStats} />;
     }
   };
 
