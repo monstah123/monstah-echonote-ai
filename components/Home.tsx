@@ -1,7 +1,8 @@
 
 import React from 'react';
 import AppLogo from './AppLogo';
-import { Sun, Moon, File, Scan, Type, Link, Plus, Headphones, PauseCircle, User, Droplet } from 'lucide-react';
+import { Note } from '../types';
+import { Sun, Moon, File, Scan, Type, Link, Plus, Headphones, PauseCircle, User, Droplet, PlayCircle } from 'lucide-react';
 
 interface HomeProps {
     isDarkMode: boolean;
@@ -9,7 +10,11 @@ interface HomeProps {
     toggleTheme: () => void;
     onFileImport: (file: File) => void;
     onStartScan: () => void;
+    recentNote?: Note;
+    onOpenNote?: (note: Note) => void;
 }
+
+
 
 const ImportIcon: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
     <div className="flex flex-col items-center space-y-2 text-light-text-secondary dark:dark-text-secondary">
@@ -54,7 +59,7 @@ const KindleIcon: React.FC<{ size: number; className?: string }> = ({ size, clas
 const GmailIcon: React.FC<{ size: number; className?: string }> = ({ size, className }) => <svg className={className} width={size} height={size} viewBox="0 0 24 24"><path fill="#ea4335" d="M5,20.5V11L12,5.5L19,11V20.5H5Z" /><path fill="#c5221f" d="M19,20.5V11L12,16.5L5,11V20.5H19Z" /><path fill="#4285f4" d="M5,9,12,3.5,19,9,12,14.5Z" /></svg>;
 
 
-const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileImport, onStartScan }) => {
+const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileImport, onStartScan, recentNote, onOpenNote }) => {
     return (
         <div className="flex flex-col space-y-6 h-full overflow-y-auto pb-16 px-4">
             <header className="flex justify-between items-center pt-2 pb-2">
@@ -120,18 +125,35 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
                 </div>
             </section>
 
-            <section>
-                <h3 className="font-bold mb-4 text-light-text dark:text-dark-text-secondary">Explore</h3>
-                <div className="bg-light-card dark:bg-dark-card p-3 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                    <div className="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-xl flex-shrink-0 flex items-center justify-center">
-                        <PauseCircle size={24} className="text-light-text-secondary dark:text-dark-text-secondary" />
+            {recentNote ? (
+                <section>
+                    <h3 className="font-bold mb-4 text-light-text dark:text-dark-text-secondary">Continue Listening</h3>
+                    <div onClick={() => onOpenNote && onOpenNote(recentNote)} className="bg-light-card dark:bg-dark-card p-3 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div className="w-12 h-12 bg-brand-blue/10 dark:bg-slate-700 rounded-xl flex-shrink-0 flex items-center justify-center">
+                            <PlayCircle size={24} className="text-brand-blue" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-sm truncate text-light-text dark:text-dark-text">{recentNote.title}</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">
+                                {recentNote.createdAt ? new Date(recentNote.createdAt).toLocaleDateString() : 'Recent'} • Tap to resume
+                            </p>
+                        </div>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                        <p className="font-semibold text-sm truncate text-light-text dark:text-dark-text">This new app will help save yo...</p>
-                        <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">22 mins</p>
+                </section>
+            ) : (
+                <section>
+                    <h3 className="font-bold mb-4 text-light-text dark:text-dark-text-secondary">Get Started</h3>
+                    <div onClick={onNewNote} className="bg-light-card dark:bg-dark-card p-3 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div className="w-12 h-12 bg-gray-200 dark:bg-slate-700 rounded-xl flex-shrink-0 flex items-center justify-center">
+                            <Plus size={24} className="text-light-text-secondary dark:text-dark-text-secondary" />
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-sm truncate text-light-text dark:text-dark-text">Start your first note</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Create text to listen to</p>
+                        </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            )}
         </div>
     );
 };

@@ -343,10 +343,29 @@ const App: React.FC = () => {
   }, [showToast]);
 
 
+  // Track last opened note for "Continue Listening" feature
+  const [lastOpenedNoteId, setLastOpenedNoteId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeNote) {
+      setLastOpenedNoteId(activeNote.id);
+      localStorage.setItem('LAST_OPENED_NOTE_ID', activeNote.id.toString());
+    }
+  }, [activeNote]);
+
+  useEffect(() => {
+    const savedId = localStorage.getItem('LAST_OPENED_NOTE_ID');
+    if (savedId) {
+      setLastOpenedNoteId(parseInt(savedId));
+    }
+  }, []);
+
+  const recentNote = notes.find(n => n.id === lastOpenedNoteId);
+
   const renderView = () => {
     switch (currentView) {
       case AppView.Home:
-        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} onStartScan={handleStartScan} />;
+        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} onStartScan={handleStartScan} recentNote={recentNote} onOpenNote={handleSelectNote} />;
       case AppView.Scanner:
         return <ScannerView onCapture={handleCapture} onClose={() => { setShouldAutoPlay(false); setCurrentView(AppView.Home); }} />;
       case AppView.MyFiles:
@@ -356,7 +375,7 @@ const App: React.FC = () => {
       case AppView.Chat:
         return <ChatView note={activeNote} onBack={handleBackToNotes} />;
       default:
-        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} />;
+        return <Home isDarkMode={isDarkMode} onNewNote={startNewNote} toggleTheme={toggleTheme} onFileImport={handleFileImport} recentNote={recentNote} onOpenNote={handleSelectNote} />;
     }
   };
 
