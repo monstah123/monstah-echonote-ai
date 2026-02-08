@@ -82,9 +82,6 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
 
     const dailyGoalMs = userStats?.dailyGoalMs || (40 * 60 * 1000);
     const progressPercent = Math.min(100, ((userStats?.dailyListeningTimeMs || 0) / dailyGoalMs) * 100);
-    const radius = 50;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
 
     return (
         <div className="flex flex-col space-y-6 h-full overflow-y-auto pb-16 px-4">
@@ -115,29 +112,29 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
                         </p>
                     </div>
                     {/* Animated Progress Ring */}
-                    <div className="absolute -right-6 -bottom-6 w-38 h-38 pointer-events-none opacity-20 dark:opacity-30">
-                        <svg className="w-32 h-32 transform -rotate-90">
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2 w-20 h-20 pointer-events-none">
+                        <svg className="w-20 h-20 transform -rotate-90">
                             {/* Track */}
                             <circle
-                                cx="64"
-                                cy="64"
-                                r={radius}
+                                cx="40"
+                                cy="40"
+                                r="32"
                                 stroke="currentColor"
-                                strokeWidth="12"
+                                strokeWidth="8"
                                 fill="transparent"
-                                className="text-gray-200 dark:text-gray-700"
+                                className="text-gray-200 dark:text-gray-700 opacity-30"
                             />
                             {/* Progress */}
                             <circle
-                                cx="64"
-                                cy="64"
-                                r={radius}
+                                cx="40"
+                                cy="40"
+                                r="32"
                                 stroke="currentColor"
-                                strokeWidth="12"
+                                strokeWidth="8"
                                 fill="transparent"
-                                strokeDasharray={circumference}
-                                strokeDashoffset={strokeDashoffset}
-                                className="text-brand-blue transition-all duration-1000 ease-out"
+                                strokeDasharray={2 * Math.PI * 32}
+                                strokeDashoffset={(2 * Math.PI * 32) - (progressPercent / 100) * (2 * Math.PI * 32)}
+                                className="text-brand-blue transition-all duration-1000 ease-out z-10"
                                 strokeLinecap="round"
                             />
                         </svg>
