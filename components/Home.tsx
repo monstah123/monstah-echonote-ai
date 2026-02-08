@@ -1,5 +1,6 @@
 
 import React from 'react';
+import AppLogo from './AppLogo';
 import { Sun, Moon, File, Scan, Type, Link, Plus, Headphones, PauseCircle, User, Droplet } from 'lucide-react';
 
 interface HomeProps {
@@ -56,8 +57,9 @@ const GmailIcon: React.FC<{ size: number; className?: string }> = ({ size, class
 const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileImport, onStartScan }) => {
     return (
         <div className="flex flex-col space-y-6 h-full overflow-y-auto pb-16 px-4">
-            <header className="flex justify-end items-center pt-2">
-                <button onClick={toggleTheme} className="p-2 rounded-full bg-light-card dark:bg-dark-card">
+            <header className="flex justify-between items-center pt-2 pb-2">
+                <AppLogo />
+                <button onClick={toggleTheme} className="p-2 rounded-full bg-light-card dark:bg-dark-card shadow-sm">
                     {isDarkMode ? <Moon size={20} className="text-white" /> : <Sun size={20} className="text-yellow-500" />}
                 </button>
             </header>
