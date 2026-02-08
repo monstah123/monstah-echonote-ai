@@ -529,7 +529,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
               showToast(newTranscription);
             } else {
               const updatedTranscript = transcription
-                ? transcription + ' ' + newTranscription
+                ? transcription + '\n\n' + newTranscription
                 : newTranscription;
 
               setTranscription(updatedTranscript);
