@@ -91,6 +91,34 @@ export const summarizeTranscript = async (transcript: string): Promise<string> =
     }
 };
 
+// Translate text to a target language
+export const translateText = async (text: string, targetLanguage: string): Promise<string> => {
+    if (!text) return '';
+    try {
+        const response = await openaiRequest('/chat/completions', {
+            model: 'gpt-4o-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: `You are a professional translator. Translate the following text into ${targetLanguage}. Maintain the original tone and formatting.`
+                },
+                {
+                    role: 'user',
+                    content: text
+                }
+            ],
+            max_tokens: 2000,
+            temperature: 0.3,
+        });
+
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || "Could not generate translation.";
+    } catch (error) {
+        console.error("Error translating text:", error);
+        return "An error occurred while translating the text.";
+    }
+};
+
 // Create a chat session for Q&A about notes
 export const createChatSession = (transcript: string): ChatSession => {
     const systemPrompt = `You are a helpful assistant. You will answer questions based on the following meeting transcript. If the answer is not in the transcript, say that you cannot find the information in the provided context.

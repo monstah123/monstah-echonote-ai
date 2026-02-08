@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Note } from '../types';
-import { summarizeTranscript, generateSpeechFromText, transcribeAudioFile, OPENAI_VOICES } from '../services/openaiService';
-import { Mic, StopCircle, Loader, FileText, Send, ArrowLeft, Download, UploadCloud, Check, Pause, ChevronDown, Play } from 'lucide-react';
+import { summarizeTranscript, generateSpeechFromText, transcribeAudioFile, OPENAI_VOICES, translateText } from '../services/openaiService';
+import { Mic, StopCircle, Loader, FileText, Send, ArrowLeft, Download, UploadCloud, Check, Pause, ChevronDown, Play, Languages } from 'lucide-react';
 
 interface NotesViewProps {
   note: Note | null;
@@ -179,6 +179,14 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
   const [showPlayPrompt, setShowPlayPrompt] = useState(false);
   const [progress, setProgress] = useState(0); // For text highlighting
 
+  // Translation State
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [showTranslateDropdown, setShowTranslateDropdown] = useState(false);
+  const translateDropdownRef = useRef<HTMLDivElement>(null);
+  const originalTranscriptRef = useRef<string | null>(null);
+
+  const SUPPORTED_LANGUAGES = ['English', 'French', 'Spanish', 'Dutch', 'German', 'Portuguese'];
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -246,6 +254,10 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     if (note) {
       setCurrentNote(note);
       setTranscription(note.transcript);
+      // Reset original transcript only when loading a NEW note (different ID)
+      // or if it's the first time
+      originalTranscriptRef.current = note.transcript;
+
       setHasAutoPlayed(false);
       setIsGeneratingSpeech(false); // Reset in case stuck from previous error
       setIsPlayingAudio(false);
@@ -265,18 +277,21 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     }
   }, [transcription, currentNote, onSave]);
 
-  // Close voice dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (voiceDropdownRef.current && !voiceDropdownRef.current.contains(event.target as Node)) {
         setIsVoiceDropdownOpen(false);
       }
+      if (translateDropdownRef.current && !translateDropdownRef.current.contains(event.target as Node)) {
+        setShowTranslateDropdown(false);
+      }
     };
-    if (isVoiceDropdownOpen) {
+    if (isVoiceDropdownOpen || showTranslateDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isVoiceDropdownOpen]);
+  }, [isVoiceDropdownOpen, showTranslateDropdown]);
 
   // Silent MP3 to unlock mobile audio
   const SILENT_MP3 = "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//OEAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAEAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD//////////////////////////////////////////////////////////////////wAAAP//OEAAAAAAAAAAAAAAAAAAAAAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAAAAAAAAAAAAACCAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA//OEMAAAAAAAABAAAAAAAAAAABFca5HDQAQAAAAAAAAAAAAAA";
@@ -634,6 +649,44 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     showToast("Summary ready!");
   };
 
+  const handleTranslate = async (lang: string) => {
+    setShowTranslateDropdown(false);
+
+    if (lang === 'Original') {
+      if (originalTranscriptRef.current !== null) {
+        setTranscription(originalTranscriptRef.current);
+        showToast("Reverted to original");
+      }
+      return;
+    }
+
+    if (!transcription) return;
+
+    setIsTranslating(true);
+    showToast(`Translating to ${lang}...`);
+
+    try {
+      // If we haven't stored original yet (e.g. user typed directly), store it now before overwriting
+      if (originalTranscriptRef.current === null) {
+        originalTranscriptRef.current = transcription;
+      }
+
+      const translated = await translateText(transcription, lang);
+      if (translated && !translated.startsWith("An error") && !translated.startsWith("Could not")) {
+        setTranscription(translated);
+        playNotificationSound();
+        showToast("Translation complete");
+      } else {
+        showToast(translated || "Translation failed");
+      }
+    } catch (error) {
+      console.error("Translation error", error);
+      showToast("Translation error");
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
   const handleExportNote = () => {
     if (!currentNote) return;
     const fileName = `${currentNote.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`;
@@ -717,6 +770,40 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
         {/* Voice & Playback Controls */}
         <div className="bg-light-bg dark:bg-dark-card/50 rounded-xl p-2 flex items-center gap-1 sm:gap-2 mb-2 h-[60px] sm:h-[68px]">
+          <div ref={translateDropdownRef} className="relative flex-shrink-0">
+            <button
+              onClick={() => setShowTranslateDropdown(p => !p)}
+              disabled={isTranslating}
+              className="p-2 rounded-lg text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors touch-manipulation disabled:opacity-50"
+              aria-label="Translate Note"
+            >
+              {isTranslating ? <Loader size={20} className="animate-spin" /> : <Languages size={20} />}
+            </button>
+            {showTranslateDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-40 bg-light-card dark:bg-dark-card rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 z-50 animate-fade-in overflow-hidden">
+                <div className="p-2 text-xs font-semibold text-light-text-secondary dark:dark-text-secondary border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
+                  TRANSLATE TO
+                </div>
+                <button
+                  onClick={() => handleTranslate('Original')}
+                  className="w-full text-left px-4 py-2 text-sm text-light-text dark:text-dark-text hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
+                >
+                  <span>Original</span>
+                  <span className="text-xs text-brand-blue">Reset</span>
+                </button>
+                {SUPPORTED_LANGUAGES.map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => handleTranslate(lang)}
+                    className="w-full text-left px-4 py-2 text-sm text-light-text dark:text-dark-text hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div ref={voiceDropdownRef} className="relative flex-shrink-0">
             <button onClick={() => setIsVoiceDropdownOpen(p => !p)} className="flex items-center gap-1 text-xs sm:text-sm p-1.5 sm:p-2 rounded-lg text-brand-blue dark:text-blue-400 hover:bg-brand-blue/10 dark:hover:bg-brand-blue/20 transition-colors touch-manipulation">
               <span className="font-semibold">{selectedVoice}</span>
@@ -811,19 +898,21 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       </div>
 
       {/* Summary Modal */}
-      {currentNote.summary && isSummarizing && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsSummarizing(false)}>
-          <div className="bg-light-card dark:bg-dark-card p-6 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-light-text dark:text-gray-100">Summary</h3>
-              <button onClick={() => setIsSummarizing(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                <Check size={24} />
-              </button>
+      {
+        currentNote.summary && isSummarizing && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setIsSummarizing(false)}>
+            <div className="bg-light-card dark:bg-dark-card p-6 rounded-xl max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-light-text dark:text-gray-100">Summary</h3>
+                <button onClick={() => setIsSummarizing(false)} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                  <Check size={24} />
+                </button>
+              </div>
+              <p className="text-sm sm:text-base whitespace-pre-wrap text-light-text-secondary dark:text-gray-300 leading-relaxed">{currentNote.summary}</p>
             </div>
-            <p className="text-sm sm:text-base whitespace-pre-wrap text-light-text-secondary dark:text-gray-300 leading-relaxed">{currentNote.summary}</p>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Fixed Footer with Recording Button */}
       <div className="flex-shrink-0 pt-2 pb-16 sm:pb-4 bg-light-bg/80 dark:bg-dark-bg/80 backdrop-blur-sm">
@@ -871,38 +960,40 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       </div>
 
       {/* Tap to Play Prompt (for when auto-play is blocked on mobile) */}
-      {showPlayPrompt && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => {
-            setShowPlayPrompt(false);
-            handlePlayPause();
-          }}
-        >
-          <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl p-8 text-center max-w-sm animate-fade-in">
-            <div className="w-20 h-20 mx-auto mb-4 bg-brand-blue rounded-full flex items-center justify-center animate-pulse">
-              <Play size={40} className="text-white ml-1" />
+      {
+        showPlayPrompt && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => {
+              setShowPlayPrompt(false);
+              handlePlayPause();
+            }}
+          >
+            <div className="bg-light-card dark:bg-dark-card rounded-2xl shadow-2xl p-8 text-center max-w-sm animate-fade-in">
+              <div className="w-20 h-20 mx-auto mb-4 bg-brand-blue rounded-full flex items-center justify-center animate-pulse">
+                <Play size={40} className="text-white ml-1" />
+              </div>
+              <h3 className="text-2xl font-bold text-light-text dark:text-dark-text mb-2">
+                Ready to Listen!
+              </h3>
+              <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6">
+                Tap anywhere to play your scanned text
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPlayPrompt(false);
+                  handlePlayPause();
+                }}
+                className="w-full bg-brand-blue text-white py-4 px-6 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-blue/30"
+              >
+                Play Now
+              </button>
             </div>
-            <h3 className="text-2xl font-bold text-light-text dark:text-dark-text mb-2">
-              Ready to Listen!
-            </h3>
-            <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6">
-              Tap anywhere to play your scanned text
-            </p>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPlayPrompt(false);
-                handlePlayPause();
-              }}
-              className="w-full bg-brand-blue text-white py-4 px-6 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity shadow-lg shadow-brand-blue/30"
-            >
-              Play Now
-            </button>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 };
 
