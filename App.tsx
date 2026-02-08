@@ -381,7 +381,6 @@ const App: React.FC = () => {
 
   // Handle stats updates from components
   const handleStatsUpdate = useCallback((realTimeMs: number, savedTimeMs: number) => {
-    console.log(`Stats Update: ${realTimeMs}ms listened, ${savedTimeMs}ms saved`);
     setUserStats(prev => {
       const today = new Date().toDateString();
       const isNewDay = today !== prev.lastUpdatedDate;
