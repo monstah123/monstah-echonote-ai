@@ -80,6 +80,12 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
     const dailyTime = userStats ? formatDailyTime(userStats.dailyListeningTimeMs) : '0m';
     const dailyGoal = userStats ? formatDailyTime(userStats.dailyGoalMs) : '40m';
 
+    const dailyGoalMs = userStats?.dailyGoalMs || (40 * 60 * 1000);
+    const progressPercent = Math.min(100, ((userStats?.dailyListeningTimeMs || 0) / dailyGoalMs) * 100);
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
     return (
         <div className="flex flex-col space-y-6 h-full overflow-y-auto pb-16 px-4">
             <header className="flex justify-between items-center pt-2 pb-2">
@@ -104,10 +110,38 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
                             <Droplet size={16} className="text-brand-blue" />
                         </div>
                         <p className="text-sm text-light-text-secondary dark:dark-text-secondary mt-1">Daily goal: {dailyGoal}</p>
-                        <p className="text-xs text-light-text-secondary dark:dark-text-secondary mt-2">Keep it up! 🔥</p>
+                        <p className="text-xs text-light-text-secondary dark:dark-text-secondary mt-2">
+                            {progressPercent >= 100 ? "Goal met! 🎉" : "Keep going! 🔥"}
+                        </p>
                     </div>
-                    {/* Progress Ring Background (simplified) */}
-                    <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full border-4 border-brand-blue/10"></div>
+                    {/* Animated Progress Ring */}
+                    <div className="absolute -right-6 -bottom-6 w-38 h-38 pointer-events-none opacity-20 dark:opacity-30">
+                        <svg className="w-32 h-32 transform -rotate-90">
+                            {/* Track */}
+                            <circle
+                                cx="64"
+                                cy="64"
+                                r={radius}
+                                stroke="currentColor"
+                                strokeWidth="12"
+                                fill="transparent"
+                                className="text-gray-200 dark:text-gray-700"
+                            />
+                            {/* Progress */}
+                            <circle
+                                cx="64"
+                                cy="64"
+                                r={radius}
+                                stroke="currentColor"
+                                strokeWidth="12"
+                                fill="transparent"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={strokeDashoffset}
+                                className="text-brand-blue transition-all duration-1000 ease-out"
+                                strokeLinecap="round"
+                            />
+                        </svg>
+                    </div>
                 </div>
             </section>
 
