@@ -154,6 +154,31 @@ const Home: React.FC<HomeProps> = ({ isDarkMode, onNewNote, toggleTheme, onFileI
                     </div>
                 </section>
             )}
+
+            <section className="mt-8 pb-4">
+                <h3 className="font-bold mb-4 text-light-text dark:text-dark-text-secondary">Explore</h3>
+                <div className="space-y-3">
+                    <div onClick={() => onOpenNote && onOpenNote({ id: -1, title: 'Welcome to Monstah EchoAI!', transcript: 'Welcome to Monstah EchoAI! 🚀\n\nThis app transforms your text into lifelike speech.\n\nTry highlighting text to see the karaoke effect, or use the Scan feature to read physical documents.\n\nEnjoy the journey!', summary: 'A quick intro to the app.', createdAt: new Date() })} className="bg-light-card dark:bg-dark-card p-3 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div className="w-12 h-12 bg-lime-400/20 dark:bg-lime-900/40 rounded-xl flex-shrink-0 flex items-center justify-center">
+                            <span className="text-xl">👋</span>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-sm truncate text-light-text dark:text-dark-text">Welcome to EchoAI</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Get started smoothly</p>
+                        </div>
+                    </div>
+
+                    <div onClick={() => onOpenNote && onOpenNote({ id: -2, title: 'Atomic Habits (Excerpt)', transcript: 'Changes that seem small and unimportant at first will compound into remarkable results if you act on them consistently.\n\nWe all deal with setbacks, but in the long run, the quality of our lives often depends on the quality of our habits.', summary: 'The power of small habits.', createdAt: new Date() })} className="bg-light-card dark:bg-dark-card p-3 rounded-3xl shadow-sm flex items-center gap-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                        <div className="w-12 h-12 bg-purple-400/20 dark:bg-purple-900/40 rounded-xl flex-shrink-0 flex items-center justify-center">
+                            <span className="text-xl">📚</span>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <p className="font-semibold text-sm truncate text-light-text dark:text-dark-text">Atomic Habits (Excerpt)</p>
+                            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary">Productivity & Growth</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
     );
 };
