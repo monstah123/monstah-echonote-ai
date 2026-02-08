@@ -155,8 +155,10 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
     if (statsSessionStartRef.current) {
       const now = Date.now();
       const duration = now - statsSessionStartRef.current;
+      console.log("updateStats called. Duration:", duration, "Stopping:", isStopping);
       if (duration > 500) { // Only count if > 0.5s
-        const saved = duration * (statsLastSpeedRef.current - 1);
+        const speed = statsLastSpeedRef.current;
+        const saved = duration * (speed - 1);
         onStatsUpdate?.(duration, saved);
       }
       if (isStopping) {
@@ -164,6 +166,8 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
       } else {
         statsSessionStartRef.current = now;
       }
+    } else {
+      console.log("updateStats called but no session start ref");
     }
   }, [onStatsUpdate]);
 
@@ -314,7 +318,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
         // Re-bind listeners
         audio.onended = () => { setIsPlayingAudio(false); setProgress(0); updateStats(true); };
         audio.onpause = () => { setIsPlayingAudio(false); updateStats(true); };
-        audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = playbackSpeed; };
+        audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = audio.playbackRate; };
         audio.ontimeupdate = () => {
           if (audio.duration && !isNaN(audio.duration)) {
             setProgress(audio.currentTime / audio.duration);
@@ -380,7 +384,7 @@ const NotesView: React.FC<NotesViewProps> = ({ note, onSave, onStartChat, onBack
 
       audio.onended = () => { setIsPlayingAudio(false); setProgress(0); updateStats(true); };
       audio.onpause = () => { setIsPlayingAudio(false); updateStats(true); };
-      audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = playbackSpeed; };
+      audio.onplay = () => { setIsPlayingAudio(true); statsSessionStartRef.current = Date.now(); statsLastSpeedRef.current = audio.playbackRate; };
       audio.ontimeupdate = () => {
         if (audio.duration && !isNaN(audio.duration)) {
           setProgress(audio.currentTime / audio.duration);

@@ -379,7 +379,9 @@ const App: React.FC = () => {
 
   const [userStats, setUserStats] = useState<UserStats>(helperGetInitialStats);
 
-  const handleStatsUpdate = (realTimeMs: number, savedTimeMs: number) => {
+  // Handle stats updates from components
+  const handleStatsUpdate = useCallback((realTimeMs: number, savedTimeMs: number) => {
+    console.log(`Stats Update: ${realTimeMs}ms listened, ${savedTimeMs}ms saved`);
     setUserStats(prev => {
       const today = new Date().toDateString();
       const isNewDay = today !== prev.lastUpdatedDate;
@@ -403,7 +405,7 @@ const App: React.FC = () => {
       localStorage.setItem('USER_STATS', JSON.stringify(newStats));
       return newStats;
     });
-  };
+  }, []);
 
   const renderView = () => {
     switch (currentView) {
