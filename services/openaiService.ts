@@ -72,11 +72,11 @@ export const summarizeTranscript = async (transcript: string): Promise<string> =
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a helpful assistant that summarizes meeting transcripts into clear, concise bullet points.'
+                    content: 'You are an expert summarizer. Your task is to extract the most important information from the transcript and present it in a clean, structured bullet-point format. Use markdown for the list.'
                 },
                 {
                     role: 'user',
-                    content: `Summarize the following meeting transcript in a few key bullet points:\n\n---\n\n${transcript}`
+                    content: `Please provide a structured summary of the following transcript:\n\n1.  **Key Takeaways** (Bullet points)\n2.  **Action Items** (if any)\n\n---\n\n${transcript}`
                 }
             ],
             max_tokens: 1000,
